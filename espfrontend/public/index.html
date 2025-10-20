@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" charset="UTF-8">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@100..900&display=swap" rel="stylesheet">
+  <title>FatihDev</title>
+  <link rel="icon" type="image/x-icon" href="/img/favicon256.ico">
+  <meta name="theme-color" content="#1f1f1f">
+  <link rel="stylesheet" href="./css/style.css">
+</head>
+
+<body>
+  <div id="top">
+    <h1>FatihDev</h1>
+  </div>
+
+  <div id="controlpanel">
+
+    <!-- Röleler -->
+    <div id="relay_parent">
+      <h2>Röleler</h2>
+      <div class="relaygroup" id="relaylist">
+        <div class="relay">
+          Röle 1
+          <button class="button" onclick="sendRelay(0, 'on')">Aç</button>
+          <button class="button off"  onclick="sendRelay(0, 'off')">Kapat</button>
+        </div>
+        <div class="relay">
+          Röle 2
+          <button class="button" onclick="sendRelay(1, 'on')">Aç</button>
+          <button class="button off"  onclick="sendRelay(1, 'off')">Kapat</button>
+        </div>
+        <div class="relay">
+          Röle 3
+          <button class="button" onclick="sendRelay(2, 'on')">Aç</button>
+          <button class="button off"  onclick="sendRelay(2, 'off')">Kapat</button>
+        </div>
+        <div class="relay">
+          Röle 4
+          <button class="button" onclick="sendRelay(3, 'on')">Aç</button>
+          <button class="button off"  onclick="sendRelay(3, 'off')">Kapat</button>
+        </div>
+        <div class="relay">
+          Röle 5
+          <button class="button" onclick="sendRelay(4, 'on')">Aç</button>
+          <button class="button off"  onclick="sendRelay(4, 'off')">Kapat</button>
+        </div>
+        <div class="relay">
+          Röle 6
+          <button class="button" onclick="sendRelay(5, 'on')">Aç</button>
+          <button class="button off"  onclick="sendRelay(5, 'off')">Kapat</button>
+        </div>
+        <div class="relay">
+          Röle 7
+          <button class="button" onclick="sendRelay(6, 'on')">Aç</button>
+          <button class="button off"  onclick="sendRelay(6, 'off')">Kapat</button>
+        </div>
+        <div class="relay">
+          Röle 8
+          <button class="button" onclick="sendRelay(7, 'on')">Aç</button>
+          <button class="button off"  onclick="sendRelay(7, 'off')">Kapat</button>
+        </div>
+
+
+
+
+      </div>
+    </div>
+
+    <!-- WOL -->
+    <div id="wol_parent">
+      <h2>Wake-on-LAN</h2>
+      <ul id="wol_list">
+        <li class="wol_device">
+          <div class="wol_infogroup">
+            <div class="wol_status"></div>
+            <div class="wol_texts">
+              <div class="wol_name">Server</div>
+              <div class="wol_statustext">Çalışıyor</div>
+            </div>
+          </div>
+          <button class="button" onclick="sendWOL(0)" class="wol_button">Uyan</button>
+        </li>
+
+        <li class="wol_device">
+          <div class="wol_infogroup">
+            <div class="wol_status"></div>
+            <div class="wol_texts">
+              <div class="wol_name">B350</div>
+              <div class="wol_statustext">Çalışıyor</div>
+            </div>
+          </div>
+          <button class="button" onclick="sendWOL(1)" class="wol_button">Uyan</button>
+        </li>
+
+        <li class="wol_device">
+          <div class="wol_infogroup">
+            <div class="wol_status"></div>
+            <div class="wol_texts">
+              <div class="wol_name">MainPC</div>
+              <div class="wol_statustext">Çalışıyor</div>
+            </div>
+          </div>
+          <button class="button" onclick="sendWOL(2)" class="wol_button">Uyan</button>
+        </li>
+      </ul>
+    </div>
+
+  </div>
+
+  <pre id="log"></pre>
+
+  <script>
+    function addLog(message) {
+      const log = document.getElementById("log");
+      const line = document.createElement("div");
+      line.textContent = message;
+      log.prepend(line);
+    }
+
+    function sendRelay(id, state) {
+      addLog("Röle " + id + " -> " + state);
+    }
+    function sendWOL(id) {
+      addLog("WOL gönderildi -> cihaz " + id);
+    }
+  </script>
+  
+  <script src="./scripts/main.js"></script>
+  <script src="./scripts/button.js"></script>
+
+
+</body>
+</html>

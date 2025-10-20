@@ -1,0 +1,16 @@
+{
+  "name": "espfrontend",
+  "version": "1.0.0",
+  "description": "ESP32 WebSocket frontend/backend",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": ["ESP32", "WebSocket", "Express", "frontend", "backend"],
+  "author": "Fatih Riddul",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^5.1.0",
+    "ws": "^8.18.3"
+  }
+}
