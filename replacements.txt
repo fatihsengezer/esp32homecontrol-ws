@@ -1,0 +1,5 @@
+"Rimer"== "SSID_REMOVED"
+"123456.x"== "PW_REMOVED"
+"Zeynel Tuncay"== "SSID_REMOVED"
+"Golgem8892"== "PW_REMOVED"
+

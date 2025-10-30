@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FatihDev - Admin Dashboard</title>
+  <link rel="icon" type="image/x-icon" href="./img/favicon256.ico">
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- CSS -->
+  <link rel="stylesheet" href="./css/admin.css">
+</head>
+<body>
+  <div id="toast-container" style="position:fixed; right:12px; bottom:12px; z-index:9999; display:flex; flex-direction:column; gap:8px; align-items:flex-end;"></div>
+  <div class="admin-container">
+    <!-- Sidebar Overlay (Mobile) -->
+    <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+    
+    <!-- Sidebar -->
+    <nav class="sidebar">
+      <div class="sidebar-header">
+        <h2><i class="fas fa-cogs"></i> Admin Panel</h2>
+
+      </div>
+      
+      <ul class="sidebar-menu">
+        <li class="menu-item active" data-tab="dashboard">
+          <i class="fas fa-tachometer-alt"></i>
+          <span>Dashboard</span>
+        </li>
+        <li class="menu-item" data-tab="users">
+          <i class="fas fa-users"></i>
+          <span>Kullanıcılar</span>
+        </li>
+        <li class="menu-item" data-tab="devices">
+          <i class="fas fa-microchip"></i>
+          <span>Cihazlar</span>
+        </li>
+        <li class="menu-item" data-tab="device-configs">
+          <i class="fas fa-cog"></i>
+          <span>Konfigürasyon</span>
+        </li>
+        <li class="menu-item" data-tab="logs">
+          <i class="fas fa-file-alt"></i>
+          <span>Loglar</span>
+        </li>
+        <li class="menu-item" data-tab="analytics">
+          <i class="fas fa-chart-line"></i>
+          <span>Analitik</span>
+        </li>
+        <li class="menu-item" data-tab="security">
+          <i class="fas fa-shield-alt"></i>
+          <span>Güvenlik</span>
+        </li>
+        <li class="menu-item" data-tab="settings">
+          <i class="fas fa-cog"></i>
+          <span>Ayarlar</span>
+        </li>
+        <li class="menu-item" data-tab="backup">
+          <i class="fas fa-database"></i>
+          <span>Backup</span>
+        </li>
+      </ul>
+      
+      <div class="sidebar-footer">
+        <a class="btn-secondary mobile-home" href="/" style="text-decoration:none; margin-bottom: 0.5rem;">
+          <i class="fas fa-home"></i>
+          Ana Sayfa
+        </a>
+        <button class="btn-logout" onclick="logout()">
+          <i class="fas fa-sign-out-alt"></i>
+          Çıkış Yap
+        </button>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Header -->
+      <header class="header">
+        <div class="header-left">
+          <button class="sidebar-toggle">
+            <i class="fas fa-bars"></i>
+          </button>
+          <h1 id="page-title">Dashboard</h1>
+        </div>
+        
+        <div class="header-right">
+          <a class="btn-secondary" href="/" style="text-decoration:none;">
+            <i class="fas fa-home"></i>
+            Ana Sayfa
+          </a>
+          <div class="notifications">
+            <button class="notification-btn" onclick="toggleNotifications()">
+              <i class="fas fa-bell"></i>
+              <span class="notification-badge" id="notification-count">0</span>
+            </button>
+          </div>
+          
+          <div class="user-menu">
+            <button class="user-btn" onclick="toggleUserMenu()">
+              <i class="fas fa-user-circle"></i>
+              <span id="admin-name">Admin</span>
+              <i class="fas fa-chevron-down"></i>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <!-- Content Area -->
+      <div class="content">
+        <!-- Dashboard Tab -->
+        <div id="dashboard" class="tab-content active">
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-icon">
+                <i class="fas fa-users"></i>
+              </div>
+              <div class="stat-info">
+                <h3 id="total-users">0</h3>
+                <p>Toplam Kullanıcı</p>
+              </div>
+            </div>
+            
+            <div class="stat-card">
+              <div class="stat-icon">
+                <i class="fas fa-microchip"></i>
+              </div>
+              <div class="stat-info">
+                <h3 id="total-devices">0</h3>
+                <p>Toplam Cihaz</p>
+              </div>
+            </div>
+            
+            <div class="stat-card">
+              <div class="stat-icon">
+                <i class="fas fa-wifi"></i>
+              </div>
+              <div class="stat-info">
+                <h3 id="online-devices">0</h3>
+                <p>Online Cihaz</p>
+              </div>
+            </div>
+            
+            <div class="stat-card">
+              <div class="stat-icon">
+                <i class="fas fa-eye"></i>
+              </div>
+              <div class="stat-info">
+                <h3 id="today-visitors">0</h3>
+                <p>Bugünkü Ziyaretçi</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="dashboard-grid">
+            <div class="dashboard-card">
+              <h3>Son Aktiviteler</h3>
+              <div id="recent-activities" class="activity-list">
+                <!-- Activities will be loaded here -->
+              </div>
+            </div>
+            
+            <div class="dashboard-card">
+              <h3>Sistem Durumu</h3>
+              <div id="system-status" class="status-list">
+                <!-- System status will be loaded here -->
+              </div>
+            </div>
+            
+            <div class="dashboard-card">
+              <h3>Ziyaretçi İstatistikleri</h3>
+              <canvas id="visitor-chart" width="400" height="200"></canvas>
+            </div>
+            
+            <div class="dashboard-card">
+              <h3>Cihaz Durumu</h3>
+              <canvas id="device-chart" width="400" height="200"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Users Tab -->
+        <div id="users" class="tab-content">
+          <div class="tab-header">
+            <h2>Kullanıcı Yönetimi</h2>
+            <button class="btn-primary" onclick="showAddUserModal()">
+              <i class="fas fa-plus"></i>
+              Yeni Kullanıcı
+            </button>
+          </div>
+          
+          <div class="table-container">
+            <table class="data-table" id="users-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Kullanıcı Adı</th>
+                  <th>Ad Soyad</th>
+                  <th>Email</th>
+                  <th>Rol</th>
+                  <th>Durum</th>
+                  <th>Son Giriş</th>
+                  <th>İşlemler</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Users will be loaded here -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Devices Tab -->
+        <div id="devices" class="tab-content">
+          <div class="tab-header">
+            <h2>Cihaz Yönetimi</h2>
+            <button class="btn-primary" onclick="showAddDeviceModal()">
+              <i class="fas fa-plus"></i>
+              Yeni Cihaz
+            </button>
+          </div>
+          
+          <div class="table-container">
+            <table class="data-table" id="devices-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Cihaz Adı</th>
+                  <th>IP Adresi</th>
+                  <th>Durum</th>
+                  <th>Son Görülme</th>
+                  <th>Sahibi</th>
+                  <th>İşlemler</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Devices will be loaded here -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Device Configs Tab -->
+        <div id="device-configs" class="tab-content">
+          <div class="tab-header">
+            <h2>Cihaz Konfigürasyon Yönetimi</h2>
+            <div class="config-controls">
+              <select id="device-selector">
+                <option value="">Cihaz Seçin</option>
+              </select>
+              <button class="btn-primary" onclick="refreshDeviceStatus()">
+                <i class="fas fa-refresh"></i>
+                Durumu Yenile
+              </button>
+            </div>
+          </div>
+          
+          <div class="config-container">
+            <!-- Device Status Card -->
+            <div class="config-card">
+              <h3>Cihaz Durumu</h3>
+              <div id="device-status" class="device-status">
+                <div class="status-item">
+                  <span class="status-label">Durum:</span>
+                  <span id="device-online-status" class="status-value offline">Offline</span>
+                </div>
+                <div class="status-item">
+                  <span class="status-label">Son Görülme:</span>
+                  <span id="device-last-seen" class="status-value">-</span>
+                </div>
+                <div class="status-item">
+                  <span class="status-label">Firmware:</span>
+                  <span id="device-firmware" class="status-value">-</span>
+                </div>
+                <div class="status-item">
+                  <span class="status-label">Kuyruk:</span>
+                  <span id="device-queue-count" class="status-value">0</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- WiFi Configuration -->
+            <div class="config-card">
+              <h3>WiFi Konfigürasyonu</h3>
+              <form id="wifi-config-form">
+                <div class="form-group">
+                  <label for="wifi-ssid">SSID:</label>
+                  <input type="text" id="wifi-ssid" placeholder="WiFi ağ adı">
+                </div>
+                <div class="form-group">
+                  <label for="wifi-password">Şifre:</label>
+                  <input type="password" id="wifi-password" placeholder="WiFi şifresi">
+                </div>
+                <div class="form-group">
+                  <label class="checkbox-label">
+                    <input type="checkbox" id="use-dhcp" checked>
+                    <span class="checkmark"></span>
+                    DHCP Kullan
+                  </label>
+                </div>
+                <div class="form-group" id="static-ip-group" style="display: none;">
+                  <label for="static-ip">Statik IP:</label>
+                  <input type="text" id="static-ip" placeholder="192.168.1.100">
+                </div>
+                <button type="button" class="btn-primary" onclick="sendWifiConfig()">
+                  <i class="fas fa-wifi"></i>
+                  WiFi Ayarlarını Gönder
+                </button>
+              </form>
+            </div>
+
+            <!-- WOL Profiles -->
+            <div class="config-card">
+              <h3>WOL Profilleri</h3>
+              <div class="wol-profiles-container">
+                <div id="wol-profiles-list" class="wol-profiles-list">
+                  <!-- WOL profiles will be loaded here -->
+                </div>
+                <button class="btn-secondary" onclick="showAddWolProfileModal()">
+                  <i class="fas fa-plus"></i>
+                  WOL Profili Ekle
+                </button>
+                <button class="btn-secondary" onclick="syncWolProfilesToDevice()" style="margin-left: .5rem;">
+                  <i class="fas fa-cloud-upload-alt"></i>
+                  Cihaza Senkronize Et
+                </button>
+              </div>
+            </div>
+
+            <!-- Configuration History -->
+            <div class="config-card">
+              <h3>Konfigürasyon Geçmişi</h3>
+              <div id="config-history" class="config-history">
+                <!-- History will be loaded here -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Logs Tab -->
+        <div id="logs" class="tab-content">
+          <div class="tab-header">
+            <h2>Sistem Logları</h2>
+            <div class="log-filters">
+              <select id="log-level-filter">
+                <option value="">Tüm Seviyeler</option>
+                <option value="DEBUG">DEBUG</option>
+                <option value="INFO">INFO</option>
+                <option value="WARN">WARN</option>
+                <option value="ERROR">ERROR</option>
+                <option value="CRITICAL">CRITICAL</option>
+              </select>
+              <input type="date" id="log-date-filter">
+              <button class="btn-secondary" onclick="refreshLogs()">
+                <i class="fas fa-refresh"></i>
+                Yenile
+              </button>
+            </div>
+          </div>
+          
+          <div class="log-container">
+            <div id="log-entries" class="log-entries">
+              <!-- Log entries will be loaded here -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Analytics Tab -->
+        <div id="analytics" class="tab-content">
+          <div class="tab-header">
+            <h2>Analitik ve Raporlar</h2>
+            <div class="analytics-filters">
+              <select id="analytics-period">
+                <option value="7">Son 7 Gün</option>
+                <option value="30">Son 30 Gün</option>
+                <option value="90">Son 90 Gün</option>
+                <option value="365">Son 1 Yıl</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="analytics-grid">
+            <div class="analytics-card">
+              <h3>Ziyaretçi Trendi</h3>
+              <canvas id="visitor-trend-chart" width="600" height="300"></canvas>
+            </div>
+            
+            <div class="analytics-card">
+              <h3>En Aktif Kullanıcılar</h3>
+              <div id="active-users-list" class="user-list">
+                <!-- Active users will be loaded here -->
+              </div>
+            </div>
+            
+            <div class="analytics-card">
+              <h3>Cihaz Kullanım İstatistikleri</h3>
+              <canvas id="device-usage-chart" width="400" height="300"></canvas>
+            </div>
+            
+            <div class="analytics-card">
+              <h3>Hata Dağılımı</h3>
+              <canvas id="error-distribution-chart" width="400" height="300"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Security Tab -->
+        <div id="security" class="tab-content">
+          <div class="tab-header">
+            <h2>Güvenlik Yönetimi</h2>
+            <button class="btn-warning" onclick="showSecuritySettings()">
+              <i class="fas fa-shield-alt"></i>
+              Güvenlik Ayarları
+            </button>
+          </div>
+          
+          <div class="security-grid">
+            <div class="security-card">
+              <h3>Son Güvenlik Olayları</h3>
+              <div id="security-events" class="security-events-list">
+                <!-- Security events will be loaded here -->
+              </div>
+            </div>
+            
+            <div class="security-card">
+              <h3>Başarısız Giriş Denemeleri</h3>
+              <div id="failed-logins" class="failed-logins-list">
+                <!-- Failed logins will be loaded here -->
+              </div>
+            </div>
+            
+            <div class="security-card">
+              <h3>Aktif Session'lar</h3>
+              <div id="active-sessions" class="sessions-list">
+                <!-- Active sessions will be loaded here -->
+              </div>
+            </div>
+            
+            <div class="security-card">
+              <h3>IP Adresleri</h3>
+              <div id="ip-addresses" class="ip-list">
+                <!-- IP addresses will be loaded here -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Settings Tab -->
+        <div id="settings" class="tab-content">
+          <div class="tab-header">
+            <h2>Sistem Ayarları</h2>
+            <button class="btn-primary" onclick="saveSettings()">
+              <i class="fas fa-save"></i>
+              Ayarları Kaydet
+            </button>
+          </div>
+          
+          <div class="settings-grid">
+            <div class="settings-section">
+              <h3>Genel Ayarlar</h3>
+              <div class="setting-item">
+                <label>Site Adı</label>
+                <input type="text" id="site-name" value="FatihDev Home Automation">
+              </div>
+              <div class="setting-item">
+                <label>Bakım Modu</label>
+                <input type="checkbox" id="maintenance-mode">
+              </div>
+              <div class="setting-item">
+                <label>Kayıt Olma</label>
+                <input type="checkbox" id="enable-registration">
+              </div>
+            </div>
+            
+            <div class="settings-section">
+              <h3>Güvenlik Ayarları</h3>
+              <div class="setting-item">
+                <label>Maksimum Giriş Denemesi</label>
+                <input type="number" id="max-login-attempts" value="5" min="1" max="10">
+              </div>
+              <div class="setting-item">
+                <label>Session Timeout (dakika)</label>
+                <input type="number" id="session-timeout" value="60" min="5" max="1440">
+              </div>
+            </div>
+            
+            <div class="settings-section">
+              <h3>Backup Ayarları</h3>
+              <div class="setting-item">
+                <label>Backup Saklama Süresi (gün)</label>
+                <input type="number" id="backup-retention" value="30" min="1" max="365">
+              </div>
+              <div class="setting-item">
+                <label>Log Saklama Süresi (gün)</label>
+                <input type="number" id="log-retention" value="90" min="1" max="365">
+              </div>
+            </div>
+
+            <div class="settings-section" id="port-manager">
+              <h3>WebSocket Port Yönetimi</h3>
+              <div class="info-box">
+                <p><strong>Kullanılabilir Portlar:</strong> 5130, 5131, 5136</p>
+                <p><strong>WebSocket URL:</strong> wss://riddleabby.serv00.net:5136/</p>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Kullanılan Portlar</label>
+                  <div id="used-ports-list" class="port-list">
+                    <!-- Kullanılan portlar buraya yüklenecek -->
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label>Kullanılabilir Portlar</label>
+                  <div id="available-ports-list" class="port-list">
+                    <!-- Kullanılabilir portlar buraya yüklenecek -->
+                  </div>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Kullanıcı Seç</label>
+                  <select id="port-user-select">
+                    <option value="">Kullanıcı seçin...</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Port Seç</label>
+                  <select id="port-select">
+                    <option value="">Port seçin...</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>İşlem</label>
+                  <div class="d-flex gap-1">
+                    <button type="button" class="btn-primary" id="assign-port">Port Ata</button>
+                    <button type="button" class="btn-secondary" id="release-port">Port Serbest Bırak</button>
+                    <button type="button" class="btn-secondary" id="refresh-ports">Yenile</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="settings-section" id="layout-manager">
+              <h3>Görünüm Düzeni (Kullanıcı Bazlı)</h3>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Kullanıcı Seç</label>
+                  <select id="layout-user-select"></select>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Gösterilecek Bölümler</label>
+                  <div class="form-check"><input type="checkbox" id="layout-relay" checked> <label for="layout-relay">Röleler (relay_parent)</label></div>
+                  <div class="form-check"><input type="checkbox" id="layout-wol" checked> <label for="layout-wol">WOL (wol_parent)</label></div>
+                  <div class="form-check"><input type="checkbox" id="layout-log" checked> <label for="layout-log">Log (log_parent)</label></div>
+                </div>
+                <div class="form-group">
+                  <label>Sıra</label>
+                  <ul id="layout-order" style="list-style:none; padding-left:0; border:1px solid #3b3b3b; border-radius:8px;">
+                    <li data-id="relay_parent" class="menu-item" style="padding:0.5rem 1rem; border-bottom:1px solid #3b3b3b; cursor:grab;">relay_parent</li>
+                    <li data-id="wol_parent" class="menu-item" style="padding:0.5rem 1rem; border-bottom:1px solid #3b3b3b; cursor:grab;">wol_parent</li>
+                    <li data-id="log_parent" class="menu-item" style="padding:0.5rem 1rem; cursor:grab;">log_parent</li>
+                  </ul>
+                  <div class="d-flex gap-1 mt-1">
+                    <button type="button" class="btn-secondary" id="layout-move-up">Yukarı</button>
+                    <button type="button" class="btn-secondary" id="layout-move-down">Aşağı</button>
+                  </div>
+                </div>
+              </div>
+              <div class="form-actions">
+                <button type="button" class="btn-primary" id="layout-save-btn"><i class="fas fa-save"></i> Kaydet</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Backup Tab -->
+        <div id="backup" class="tab-content">
+          <div class="tab-header">
+            <h2>Backup ve Geri Yükleme</h2>
+            <div class="backup-actions">
+              <button class="btn-primary" onclick="createBackup()">
+                <i class="fas fa-download"></i>
+                Yeni Backup Oluştur
+              </button>
+              <button class="btn-secondary" onclick="refreshBackups()">
+                <i class="fas fa-refresh"></i>
+                Yenile
+              </button>
+            </div>
+          </div>
+          
+          <div class="backup-grid">
+            <div class="backup-card">
+              <h3>Mevcut Backup'lar</h3>
+              <div id="backup-list" class="backup-list">
+                <!-- Backups will be loaded here -->
+              </div>
+            </div>
+            
+            <div class="backup-card">
+              <h3>Backup İstatistikleri</h3>
+              <div id="backup-stats" class="backup-stats">
+                <!-- Backup stats will be loaded here -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modals -->
+  <div id="modal-overlay" class="modal-overlay" onclick="closeModal()">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3 id="modal-title">Modal Başlık</h3>
+        <button class="modal-close" onclick="closeModal()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="modal-body" id="modal-body">
+        <!-- Modal content will be loaded here -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit User Modal -->
+  <div id="edit-user-modal" class="modal-overlay" onclick="closeEditUserModal()">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Kullanıcı Düzenle</h3>
+        <button class="modal-close" onclick="closeEditUserModal()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <form id="edit-user-form">
+          <input type="hidden" id="edit-user-id">
+          <div class="form-group">
+            <label>Kullanıcı Adı</label>
+            <input type="text" id="edit-username" required>
+          </div>
+          <div class="form-group">
+            <label>Ad Soyad</label>
+            <input type="text" id="edit-name">
+          </div>
+          <div class="form-group">
+            <label>E-posta</label>
+            <input type="email" id="edit-email">
+          </div>
+          <div class="form-group">
+            <label>Rol</label>
+            <select id="edit-role">
+              <option value="user">Kullanıcı</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>
+              <input type="checkbox" id="edit-active">
+              Aktif
+            </label>
+          </div>
+          <div class="form-actions">
+            <button type="button" class="btn-secondary" onclick="closeEditUserModal()">İptal</button>
+            <button type="submit" class="btn-primary">Güncelle</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add WOL Profile Modal -->
+  <div id="add-wol-profile-modal" class="modal-overlay" onclick="closeAddWolProfileModal()">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3>WOL Profili Ekle</h3>
+        <button class="modal-close" onclick="closeAddWolProfileModal()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <form id="add-wol-profile-form">
+          <div class="form-group">
+            <label for="wol-profile-name">Profil Adı:</label>
+            <input type="text" id="wol-profile-name" placeholder="PC-Fatih" required>
+          </div>
+          <div class="form-group">
+            <label for="wol-profile-mac">MAC Adresi:</label>
+            <input type="text" id="wol-profile-mac" placeholder="AA:BB:CC:DD:EE:FF" required>
+          </div>
+          <div class="form-group">
+            <label for="wol-profile-broadcast">Broadcast IP:</label>
+            <input type="text" id="wol-profile-broadcast" placeholder="192.168.1.255" required>
+          </div>
+          <div class="form-group">
+            <label for="wol-profile-port">Port:</label>
+            <input type="number" id="wol-profile-port" value="9" min="1" max="65535">
+          </div>
+          <div class="form-actions">
+            <button type="button" class="btn-primary" onclick="addWolProfile()">Ekle</button>
+            <button type="button" class="btn-secondary" onclick="closeAddWolProfileModal()">İptal</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification Dropdown -->
+  <div id="notification-dropdown" class="notification-dropdown">
+    <div class="notification-header">
+      <h4>Bildirimler</h4>
+      <button onclick="markAllAsRead()">Tümünü Okundu İşaretle</button>
+    </div>
+    <div class="notification-list" id="notification-list">
+      <!-- Notifications will be loaded here -->
+    </div>
+  </div>
+
+  <!-- User Menu Dropdown -->
+  <div id="user-menu-dropdown" class="user-menu-dropdown">
+    <a href="#" onclick="showProfile()">
+      <i class="fas fa-user"></i>
+      Profil
+    </a>
+    <a href="#" onclick="showSettings()">
+      <i class="fas fa-cog"></i>
+      Ayarlar
+    </a>
+    <a href="#" onclick="logout()">
+      <i class="fas fa-sign-out-alt"></i>
+      Çıkış Yap
+    </a>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="./scripts/admin.js?v=1"></script>
+</body>
+</html>

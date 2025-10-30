@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ESP32 WiFi Ayarları</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>📡 ESP32 WiFi Ayarları</h1>
+      <p class="subtitle">WiFi ağınızı seçin ve şifrenizi girin</p>
+    </div>
+
+    <div class="content">
+      <div class="button-group">
+        <button id="scan" class="btn btn-primary">
+          <span class="icon">📡</span> Ağları Tara
+        </button>
+      </div>
+
+      <div class="form-group">
+        <label for="ssid">WiFi Ağı:</label>
+        <select id="ssid" class="input-select">
+          <option value="">Ağ seçin...</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="password">Şifre:</label>
+        <input type="password" id="password" class="input-text" placeholder="WiFi şifresini girin">
+      </div>
+
+      <button id="save" class="btn btn-success" disabled>
+        <span class="icon">💾</span> Kaydet ve Bağlan
+      </button>
+
+      <p id="status" class="status-message"></p>
+    </div>
+
+    <div class="footer">
+      <p class="info">Not: Cihaz kayıt sonrası otomatik olarak yeniden başlatılacaktır.</p>
+    </div>
+  </div>
+  
+  <script src="script.js"></script>
+</body>
+</html>
+
+

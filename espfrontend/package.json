@@ -6,11 +6,23 @@
   "scripts": {
     "start": "node server.js"
   },
-  "keywords": ["ESP32", "WebSocket", "Express", "frontend", "backend"],
+  "keywords": [
+    "ESP32",
+    "WebSocket",
+    "Express",
+    "frontend",
+    "backend"
+  ],
   "author": "Fatih Riddul",
   "license": "ISC",
   "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
     "express": "^5.1.0",
+    "better-sqlite3": "^9.2.2",
     "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "selfsigned": "^3.0.1"
   }
 }

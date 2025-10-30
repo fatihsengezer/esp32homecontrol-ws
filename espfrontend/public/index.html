@@ -12,123 +12,60 @@
 </head>
 
 <body>
-  <div id="top">
-    <h1>FatihDev</h1>
-  </div>
-
-  <div id="controlpanel">
-
-    <!-- Röleler -->
-    <div id="relay_parent">
-      <h2>Röleler</h2>
-      <div class="relaygroup" id="relaylist">
-        <div class="relay">
-          Röle 1
-          <button class="button" onclick="sendRelay(0, 'on')">Aç</button>
-          <button class="button off"  onclick="sendRelay(0, 'off')">Kapat</button>
+    <div id="toast-container" style="position:fixed; right:12px; bottom:12px; z-index:9999; display:flex; flex-direction:column; gap:8px; align-items:flex-end;"></div>
+  <div class="main-container">
+    <div id="top">
+      <div>
+        <div>
+          <h1>FatihDev</h1>
+          <div id="connection-status">Bağlantı Kontrol Ediliyor...</div>
+          <button id="reconnect-btn" onclick="manualReconnect()" style="display:none; margin-left: 10px; padding: 5px 10px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">Yeniden Bağlan</button>
         </div>
-        <div class="relay">
-          Röle 2
-          <button class="button" onclick="sendRelay(1, 'on')">Aç</button>
-          <button class="button off"  onclick="sendRelay(1, 'off')">Kapat</button>
+        <div>
+          <span id="user-info">Yükleniyor...</span>
+          <span id="username" style="display: none;"></span>
+          <span id="userRole" style="display: none;"></span>
+          <button id="admin-btn" onclick="goToAdmin()" style="display: none;">Admin</button>
+          <button id="logout-btn" onclick="logout()">Çıkış</button>
         </div>
-        <div class="relay">
-          Röle 3
-          <button class="button" onclick="sendRelay(2, 'on')">Aç</button>
-          <button class="button off"  onclick="sendRelay(2, 'off')">Kapat</button>
-        </div>
-        <div class="relay">
-          Röle 4
-          <button class="button" onclick="sendRelay(3, 'on')">Aç</button>
-          <button class="button off"  onclick="sendRelay(3, 'off')">Kapat</button>
-        </div>
-        <div class="relay">
-          Röle 5
-          <button class="button" onclick="sendRelay(4, 'on')">Aç</button>
-          <button class="button off"  onclick="sendRelay(4, 'off')">Kapat</button>
-        </div>
-        <div class="relay">
-          Röle 6
-          <button class="button" onclick="sendRelay(5, 'on')">Aç</button>
-          <button class="button off"  onclick="sendRelay(5, 'off')">Kapat</button>
-        </div>
-        <div class="relay">
-          Röle 7
-          <button class="button" onclick="sendRelay(6, 'on')">Aç</button>
-          <button class="button off"  onclick="sendRelay(6, 'off')">Kapat</button>
-        </div>
-        <div class="relay">
-          Röle 8
-          <button class="button" onclick="sendRelay(7, 'on')">Aç</button>
-          <button class="button off"  onclick="sendRelay(7, 'off')">Kapat</button>
-        </div>
-
-
-
-
       </div>
     </div>
 
-    <!-- WOL -->
-    <div id="wol_parent">
-      <h2>Wake-on-LAN</h2>
-      <ul id="wol_list">
-        <li class="wol_device">
-          <div class="wol_infogroup">
-            <div class="wol_status"></div>
-            <div class="wol_texts">
-              <div class="wol_name">Server</div>
-              <div class="wol_statustext">Çalışıyor</div>
-            </div>
-          </div>
-          <button class="button" onclick="sendWOL(0)" class="wol_button">Uyan</button>
-        </li>
-
-        <li class="wol_device">
-          <div class="wol_infogroup">
-            <div class="wol_status"></div>
-            <div class="wol_texts">
-              <div class="wol_name">B350</div>
-              <div class="wol_statustext">Çalışıyor</div>
-            </div>
-          </div>
-          <button class="button" onclick="sendWOL(1)" class="wol_button">Uyan</button>
-        </li>
-
-        <li class="wol_device">
-          <div class="wol_infogroup">
-            <div class="wol_status"></div>
-            <div class="wol_texts">
-              <div class="wol_name">MainPC</div>
-              <div class="wol_statustext">Çalışıyor</div>
-            </div>
-          </div>
-          <button class="button" onclick="sendWOL(2)" class="wol_button">Uyan</button>
-        </li>
-      </ul>
+    <div id="device-selector" style="display:none;">
+      <label for="device-select">Cihaz Seçin:</label>
+      <select id="device-select">
+        <option value="">Cihaz yükleniyor...</option>
+      </select>
     </div>
 
+    <div id="controlpanel" style="display:none;">
+      <!-- Relayler -->
+      <div id="relay_parent" style="display:none;">
+        <h2>Relays</h2>
+        <div class="relaygroup" id="relaylist"></div>
+      </div>
+
+      <!-- WOL -->
+      <div id="wol_parent" style="display:none;">
+        <h2>Wake-on-LAN</h2>
+        <ul id="wol_list"></ul>
+      </div>
+    </div>
+
+    <div id="log_parent" style="display:none;">
+      <div class="log-header">
+        <h3>Log</h3>
+        <button onclick="clearLog()" class="clear-log-btn">Temizle</button>
+      </div>
+      <pre id="log"></pre>
+    </div>
   </div>
 
-  <pre id="log"></pre>
-
-  <script>
-    function addLog(message) {
-      const log = document.getElementById("log");
-      const line = document.createElement("div");
-      line.textContent = message;
-      log.prepend(line);
-    }
-
-    function sendRelay(id, state) {
-      addLog("Röle " + id + " -> " + state);
-    }
-    function sendWOL(id) {
-      addLog("WOL gönderildi -> cihaz " + id);
-    }
-  </script>
+  <!-- Inline JavaScript kaldırıldı - main.js ve wol_status.js'de tanımlandı -->
   
   <script src="./scripts/main.js"></script>
+  <script src="./scripts/relay_status.js"></script>
+  <script src="./scripts/wol_status.js"></script>
   <script src="./scripts/button.js"></script>
 
 

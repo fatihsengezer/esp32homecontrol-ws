@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" charset="UTF-8">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@100..900&display=swap" rel="stylesheet">
+  <title>FatihDev</title>
+  <link rel="icon" type="image/x-icon" href="/img/favicon256.ico">
+  <meta name="theme-color" content="#1f1f1f">
+  <link rel="stylesheet" href="./css/style.css">
+</head>
+
+<body>
+  <div id="top">
+    <h1>FatihDev</h1>
+  </div>
+
+  <div id="controlpanel">
+
+    <!-- Relayler -->
+    <div id="relay_parent">
+      <h2>Relays</h2>
+      <div class="relaygroup" id="relaylist">
+        <div class="relay">
+
+          <span class="relay_status" id="relay_status_0"></span>
+          <button class="button" onclick="sendRelay(0)">Relay 1</button>
+        </div>
+        <div class="relay">
+   
+          <span class="relay_status" id="relay_status_1"></span>
+          <button class="button" onclick="sendRelay(1)">Relay 2</button>
+        </div>
+        <div class="relay">
+
+          <span class="relay_status" id="relay_status_2"></span>
+          <button class="button" onclick="sendRelay(2)">Relay 3</button>
+        </div>
+        <div class="relay">
+ 
+          <span class="relay_status" id="relay_status_3"></span>
+          <button class="button" onclick="sendRelay(3)">Relay 4</button>
+        </div>
+        <div class="relay">
+          
+          <span class="relay_status" id="relay_status_4"></span>
+          <button class="button" onclick="sendRelay(4)">Relay 5</button>
+        </div>
+        <div class="relay">
+ 
+          <span class="relay_status" id="relay_status_5"></span>
+          <button class="button" onclick="sendRelay(5)">Relay 6</button>
+        </div>
+        <div class="relay">
+ 
+          <span class="relay_status" id="relay_status_6"></span>
+          <button class="button" onclick="sendRelay(6)">Relay 7</button>
+        </div>
+        <div class="relay">
+ 
+          <span class="relay_status" id="relay_status_7"></span>
+          <button class="button" onclick="sendRelay(7)">Relay 8</button>
+        </div>
+
+
+
+
+      </div>
+    </div>
+
+    <!-- WOL -->
+    <div id="wol_parent">
+      <h2>Wake-on-LAN</h2>
+      <ul id="wol_list">
+        <li class="wol_device">
+          <div class="wol_infogroup">
+            <div class="wol_status"></div>
+            <div class="wol_texts">
+              <div class="wol_name">Server</div>
+              <div class="wol_statustext">Loading...</div>
+            </div>
+          </div>
+          <button class="button" onclick="sendWOL(0)" class="wol_button">Wake</button>
+        </li>
+
+        <li class="wol_device">
+          <div class="wol_infogroup">
+            <div class="wol_status"></div>
+            <div class="wol_texts">
+              <div class="wol_name">B350</div>
+              <div class="wol_statustext">Loading...</div>
+            </div>
+          </div>
+          <button class="button" onclick="sendWOL(1)" class="wol_button">Wake</button>
+        </li>
+
+        <li class="wol_device">
+          <div class="wol_infogroup">
+            <div class="wol_status"></div>
+            <div class="wol_texts">
+              <div class="wol_name">Main</div>
+              <div class="wol_statustext">Loading...</div>
+            </div>
+          </div>
+          <button class="button" onclick="sendWOL(2)" class="wol_button">Wake</button>
+        </li>
+      </ul>
+    </div>
+
+  </div>
+
+  <pre id="log"></pre>
+
+  <script>
+    function addLog(message) {
+      const log = document.getElementById("log");
+      const line = document.createElement("div");
+      line.textContent = message;
+      log.prepend(line);
+    }
+
+    function sendRelay(id, state) {
+      addLog("Relay " + id + " -> " + state);
+    }
+    function sendWOL(id) {
+      addLog("WOL gönderildi -> cihaz " + id);
+    }
+  </script>
+  
+  <script src="./scripts/main.js"></script>
+  <script src="./scripts/relay_status.js"></script>
+  <script src="./scripts/wol_status.js"></script>
+  <script src="./scripts/button.js"></script>
+
+
+
+</body>
+</html>

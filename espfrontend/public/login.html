@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FatihDev - Login</title>
+  <link rel="icon" type="image/x-icon" href="./img/favicon256.ico">
+
+  <!-- Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="./css/login.css">
+</head>
+<body>
+
+  <div class="login-container">
+    <h1 class="logo">Fatih<span>Dev</span></h1>
+
+    <form class="login-form" id="loginForm">
+      <input type="text" id="username" placeholder="Kullanıcı Adı" required>
+      <input type="password" id="password" placeholder="Şifre" required>
+      
+      <div class="remember-me">
+        <input type="checkbox" id="rememberMe">
+        <label for="rememberMe">Beni Hatırla</label>
+      </div>
+
+      <button type="submit">Giriş Yap</button>
+
+      <div class="error-message" id="errorMessage"></div>
+
+      <div class="links">
+        <a href="#" onclick="showForgotPassword()">Şifremi Unuttum</a>
+        <a href="#" class="create" onclick="showCreateAccount()">Hesap Oluştur</a>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    // Form submit
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+      const rememberMe = document.getElementById('rememberMe').checked;
+      
+      const errorDiv = document.getElementById('errorMessage');
+      errorDiv.textContent = '';
+      
+      try {
+        // API base URL'i belirle
+        const baseUrl = `${window.location.protocol}//${window.location.hostname}:5130`;
+        
+        // Önce test endpoint'ini kontrol et
+        console.log('🔍 API test ediliyor:', `${baseUrl}/api/test`);
+        const testResponse = await fetch(`${baseUrl}/api/test`);
+        console.log('🧪 Test response:', testResponse.status);
+        
+        const response = await fetch(`${baseUrl}/api/login`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ username, password, rememberMe })
+        });
+        
+        console.log('🔐 Login response status:', response.status);
+        console.log('🔐 Login response headers:', response.headers);
+        console.log('🔐 Set-Cookie header:', response.headers.get('set-cookie'));
+        
+        const data = await response.json();
+        console.log('🔐 Login response data:', data);
+        
+        if (data.success) {
+          console.log('✅ Login başarılı, yönlendiriliyor...');
+          console.log('🍪 Cookies after login:', document.cookie);
+          console.log('🔑 Session ID from response:', data.sessionId);
+          
+          // Manuel cookie set etme kaldırıldı
+          
+          // Kısa bir bekleme ekle (cookie'nin set olması için)
+          window.location.href = '/';
+        } else {
+          console.log('❌ Login başarısız:', data.message);
+          // Hata mesajı göster
+          errorDiv.textContent = data.message;
+          errorDiv.style.display = 'block';
+        }
+      } catch (error) {
+        errorDiv.textContent = 'Bağlantı hatası! Lütfen tekrar deneyin.';
+        errorDiv.style.display = 'block';
+      }
+    });
+    
+    // Şifremi unuttum
+    function showForgotPassword() {
+      alert('Şifre sıfırlama özelliği henüz mevcut değil. Lütfen yönetici ile iletişime geçin.');
+    }
+    
+    // Hesap oluştur
+    function showCreateAccount() {
+      alert('Hesap oluşturma özelliği henüz mevcut değil. Lütfen yönetici ile iletişime geçin.');
+    }
+  </script>
+
+</body>
+</html>
+
+
+
+

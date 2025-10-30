@@ -1,0 +1,8 @@
+{
+  "host": "sftp.example.com",
+  "username": "user_name",
+  "remotePath": "/path/to/remote/dir/",
+  "password": "REPLACE_WITH_SECURE_PASSWORD",
+  "port": 22
+}
+

@@ -42,39 +42,17 @@ body {
 }
 
 /* Inputlar */
-.login-form input[type="text"],
-.login-form input[type="password"] {
+.login-form input {
   background: #1a1a1a;
   border: none;
   border-radius: 0.8rem;
   padding: 0.9rem;
   color: #fff;
   font-size: 1rem;
-  transition: outline 0.3s ease;
 }
 
 .login-form input:focus {
   outline: 2px solid #d79333;
-}
-
-/* Beni hatırla */
-.remember-me {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin: 0.5rem 0;
-  font-size: 0.9rem;
-}
-
-.remember-me input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  accent-color: #d79333;
-}
-
-.remember-me label {
-  color: #ccc;
-  cursor: pointer;
 }
 
 /* Buton */
@@ -88,23 +66,10 @@ body {
   font-weight: 600;
   cursor: pointer;
   transition: background 0.3s ease;
-  margin-top: 0.5rem;
 }
 
 .login-form button:hover {
   background: #b67623;
-}
-
-.login-form button:active {
-  transform: translateY(1px);
-}
-
-/* Hata mesajı */
-.error-message {
-  color: #ff6b6b;
-  font-size: 0.9rem;
-  margin-top: 0.5rem;
-  display: none;
 }
 
 /* Linkler */
@@ -130,16 +95,4 @@ body {
   margin-top: 0.5rem;
   font-weight: 600;
   color: #d79333;
-}
-
-/* Responsive */
-@media (max-width: 480px) {
-  .login-container {
-    padding: 1.5rem;
-    margin: 1rem;
-  }
-  
-  .logo {
-    font-size: 1.8rem;
-  }
 }

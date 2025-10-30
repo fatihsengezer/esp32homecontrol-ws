@@ -12,138 +12,6 @@ body {
   width: 100%;
 }
 
-#log_parent {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1.5rem;
-  width: 100%;
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-/* New elements styling */
-.main-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1.5rem;
-  width: 100%;
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 1rem;
-}
-
-#device-selector {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  width: 100%;
-  max-width: 400px;
-}
-
-#device-selector label {
-  color: #e0e0e0;
-  font-size: 1rem;
-  white-space: nowrap;
-}
-
-#device-selector select {
-  padding: 0.5rem;
-  border-radius: 0.5rem;
-  background: #2e2e2e;
-  color: #e0e0e0;
-  border: 1px solid #3b3b3b;
-  font-size: 1rem;
-  min-width: 200px;
-}
-
-#connection-status {
-  font-size: 0.9rem;
-  font-weight: bold;
-  margin-top: 0.5rem;
-  color: #ffc107;
-}
-
-#user-info {
-  font-size: 0.9rem;
-  color: #ccc;
-  margin-right: 0.5rem;
-}
-
-#admin-btn, #logout-btn {
-  background: #3498db;
-  color: white;
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 0.4rem;
-  cursor: pointer;
-  font-size: 0.8rem;
-  font-family: 'Lexend Deca', sans-serif;
-  transition: background 0.2s ease;
-}
-
-#logout-btn {
-  background: #ff6b6b;
-}
-
-#admin-btn:hover, #logout-btn:hover {
-  opacity: 0.8;
-}
-
-h3 {
-  margin: 0;
-  font-size: 1.2rem;
-  color: #e0e0e0;
-}
-
-.log-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-  max-width: 600px;
-  margin-bottom: 0.5rem;
-}
-
-.clear-log-btn {
-  padding: 0.3rem 0.8rem;
-  font-size: 0.8rem;
-  background: #dc3545;
-  color: white;
-  border: none;
-  border-radius: 0.5rem;
-  cursor: pointer;
-  font-family: 'Lexend Deca', sans-serif;
-  transition: background 0.2s ease;
-}
-
-.clear-log-btn:hover {
-  background: #c82333;
-}
-
-/* Ensure new elements don't break original layout */
-#top {
-  background: transparent;
-  border: none;
-  box-shadow: none;
-  padding: 0;
-}
-
-#device-selector {
-  background: transparent;
-  border: none;
-  box-shadow: none;
-  padding: 0;
-}
-
-/* Fix any potential layout issues */
-.main-container > * {
-  width: 100%;
-  max-width: 1200px;
-}
-
 h1 {
   margin: 1rem 0;
   text-align: center;
@@ -188,6 +56,7 @@ button {
   -webkit-tap-highlight-color: transparent; /* Chrome, Safari, Android */
   -webkit-focus-ring-color: transparent;    /* iOS Safari */
   outline: none;                            /* Varsayılan outline'u da kaldırır */        
+        
 }
 
 
@@ -200,14 +69,6 @@ button {
 #top {
   width: 100%;
   margin: 0;
-}
-
-#top > div {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 1rem;
 }
 
 #relay_parent,
@@ -347,72 +208,20 @@ button {
     gap: 1rem;
   }
 
-  .main-container {
-    padding: 0 0.5rem;
-    gap: 1rem;
-  }
-
-  #top > div {
-    flex-direction: column;
-    gap: 0.5rem;
-    text-align: center;
-  }
-
-  #top > div > div:last-child {
-    flex-direction: row;
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-  }
-
-  #device-selector {
-    flex-direction: column;
-    gap: 0.5rem;
-    text-align: center;
-  }
-
-  #device-selector select {
-    min-width: 250px;
-    font-size: 1.1rem;
-  }
-
-  #connection-status {
-    font-size: 0.8rem;
-  }
-
-  #user-info {
-    font-size: 0.8rem;
-  }
-
-  #admin-btn, #logout-btn {
-    font-size: 0.7rem;
-    padding: 0.4rem 0.8rem;
-  }
-
-  .log-header {
-    flex-direction: column;
-    gap: 0.5rem;
-    text-align: center;
-  }
-
-  .clear-log-btn {
-    font-size: 0.7rem;
-    padding: 0.4rem 0.8rem;
-  }
-
   .button {
     font-size: 1.3rem;
+
   }
 
   button:active {
-    background: #1a1a1a;
-  }
-  
+  background: #1a1a1a;
+}
   .off:active {
+
     background: #a71d2a;
   }
 
-  .wol_device {
+  #wol_device {
     flex-direction: row;      /* yan yana kalsın */
     justify-content: space-between;
     align-items: center;
@@ -422,7 +231,7 @@ button {
     gap: 0.7rem;
   }
 
-  .wol_button {
+  #wol_button {
     font-size: 1.1rem;
     padding: 0.6rem 1.3rem;
   }
@@ -431,40 +240,10 @@ button {
     gap: 1rem;
   }
 
+
   .relaygroup {
-    padding: unset;
-  }
+  padding: unset;
+
+}
 }
 
-@media (max-width: 480px) {
-  .main-container {
-    padding: 0;
-  }
-
-  #device-selector select {
-    min-width: 200px;
-    font-size: 1rem;
-  }
-
-  #admin-btn, #logout-btn {
-    font-size: 0.6rem;
-    padding: 0.3rem 0.6rem;
-  }
-
-  .clear-log-btn {
-    font-size: 0.6rem;
-    padding: 0.3rem 0.6rem;
-  }
-
-  h1 {
-    font-size: 1.5rem;
-  }
-
-  h2 {
-    font-size: 1.2rem;
-  }
-
-  h3 {
-    font-size: 1rem;
-  }
-}

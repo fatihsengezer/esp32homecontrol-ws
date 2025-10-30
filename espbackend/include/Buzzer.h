@@ -1,34 +1,35 @@
-#ifndef BUZZER_H
-#define BUZZER_H
-
+#pragma once
 #include <Arduino.h>
 
-#define BUZZER_PIN 19
-#define BUZZER_CHANNEL 0
+// Buzzer pin
+#define BUZZER_PIN 19  // İstersen pin numarasını değiştir
 
-// Buzzer setup
+// PWM ayarları
+const int buzzerChannel = 0;
+const int buzzerResolution = 8; // 8 bit = 0-255 duty
+int currentFreq = 0;
+
 void buzzerInit() {
-  pinMode(BUZZER_PIN, OUTPUT);
-  ledcSetup(BUZZER_CHANNEL, 2000, 8); // 2 kHz, 8-bit
-  ledcAttachPin(BUZZER_PIN, BUZZER_CHANNEL);
+  ledcSetup(buzzerChannel, 1000, buzzerResolution);
+  ledcAttachPin(BUZZER_PIN, buzzerChannel);
 }
 
-// Tekli bip
-void buzzerBeep(int freq = 2000, int duration = 500) {
-  ledcWriteTone(BUZZER_CHANNEL, freq);
+// --- Ses çal ---
+void buzzerPlay(int freq, int duration, float volume = 1.0) {
+  if (volume < 0) volume = 0;
+  if (volume > 1) volume = 1;
+
+  int duty = (int)(255 * volume);
+  ledcWriteTone(buzzerChannel, freq);
+  ledcWrite(buzzerChannel, duty);
+
   delay(duration);
-  ledcWriteTone(BUZZER_CHANNEL, 0);
+
+  ledcWriteTone(buzzerChannel, 0); // Durdur
+  ledcWrite(buzzerChannel, 0);
 }
 
-// White noise tarzı cızırtı
-void buzzerNoise(int duration_ms) {
-  unsigned long endTime = millis() + duration_ms;
-  while (millis() < endTime) {
-    int f = random(1000, 4000); // 1-4 kHz rastgele frekans
-    ledcWriteTone(BUZZER_CHANNEL, f);
-    delay(1);
-  }
-  ledcWriteTone(BUZZER_CHANNEL, 0);
+// --- Basit bip (eski fonksiyon uyumu için) ---
+void buzzerBeep(int freq = 2000, int duration = 200) {
+  buzzerPlay(freq, duration, 1.0);
 }
-
-#endif
