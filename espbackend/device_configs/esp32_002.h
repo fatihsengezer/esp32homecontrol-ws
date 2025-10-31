@@ -30,8 +30,11 @@
 #undef WOL_BROADCAST_IP
 #define WOL_BROADCAST_IP "192.168.1.255"
 
-// Cihaz özel WOL listesi (örnek)
-// Derleme biriminde tek tanım kalsın diye makro ile .cpp tarafına veri geçilir
+// Cihaz özel WOL listesi (compile-time initialization - opsiyonel)
+// NOT: Runtime'da admin panelinden eklenen profiller Preferences'ta saklanır
+// ve her boot'ta otomatik yüklenir. Bu compile-time tanımlar sadece ilk kurulum için varsayılandır.
+// Eğer Preferences'ta profil varsa, bu tanımlar göz ardı edilir.
+// Not: name field'ı artık char[32] array olduğu için string literal kullanılabilir
 #define WOL_DEVICES_INIT { \
   {"PC", {0x30, 0x9C, 0x23, 0x03, 0xDE, 0xE5}, IPAddress(192,168,1,38), IPAddress(192,168,1,255), 9, WOLDevice::OFFLINE, 0} \
 }

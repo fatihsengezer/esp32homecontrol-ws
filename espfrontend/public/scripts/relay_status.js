@@ -72,11 +72,18 @@ function updateAllRelayStatuses(relayStates) {
 function toggleRelay(relayId) {
   const statusElement = document.getElementById(`relay_status_${relayId}`);
   if (statusElement) {
+    // Mevcut durumu kontrol et (eğer class yoksa varsayılan olarak 'off' kabul et)
     const isOn = statusElement.classList.contains('on');
     const newState = isOn ? 'off' : 'on';
     
-    // Sadece mesajı gönder, UI'yi güncelleme (ESP32'den gelecek)
+    // UI'yi hemen güncelle (optimistic update)
+    statusElement.classList.remove('on', 'off');
+    statusElement.classList.add(newState);
+    
+    // Sonra mesajı gönder (ESP32'den cevap geldiğinde zaten tekrar güncellenecek)
     sendRelay(relayId, newState);
+  } else {
+    console.warn(`Relay status element bulunamadı: relay_status_${relayId}`);
   }
 }
 

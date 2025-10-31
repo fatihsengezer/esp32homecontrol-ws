@@ -823,14 +823,14 @@ function renderDynamicControls(cap) {
         const li = document.createElement('li');
         li.className = 'wol_device';
         li.innerHTML = `
+          <div class="wol_status"></div>
           <div class="wol_infogroup">
-            <div class="wol_status"></div>
             <div class="wol_texts">
               <div class="wol_name">${w.name}</div>
               <div class="wol_statustext">Loading...</div>
             </div>
           </div>
-          <button class="button" onclick="sendWOL(${w.index})" class="wol_button">Wake</button>
+          <button class="button wol_button" onclick="sendWOL(${w.index})">Wake</button>
         `;
         wolList.appendChild(li);
       });

@@ -191,9 +191,17 @@ const userDB = {
     },
     updateUser: (id, userData) => {
         try {
-            const { name, email, role, is_active, websocket_port } = userData;
-            const stmt = db.prepare('UPDATE users SET name = ?, email = ?, role = ?, is_active = ?, websocket_port = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
-            stmt.run(name, email, role, is_active, websocket_port, id);
+            const { name, email, role, is_active, websocket_port, password } = userData;
+            let query, params;
+            if (password !== undefined) {
+                query = 'UPDATE users SET name = ?, email = ?, role = ?, is_active = ?, websocket_port = ?, password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?';
+                params = [name, email, role, is_active, websocket_port, password, id];
+            } else {
+                query = 'UPDATE users SET name = ?, email = ?, role = ?, is_active = ?, websocket_port = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?';
+                params = [name, email, role, is_active, websocket_port, id];
+            }
+            const stmt = db.prepare(query);
+            stmt.run(...params);
             return Promise.resolve({ id, ...userData });
         } catch (err) {
             return Promise.reject(err);

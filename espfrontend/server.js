@@ -292,7 +292,7 @@ app.post('/api/admin/users', requireAuth, async (req, res) => {
 app.put('/api/admin/users/:userId', requireAuth, async (req, res) => {
   const admin = await userDB.getUserById(req.userId);
   if (!admin || admin.role !== 'admin') return res.status(403).json({ error:'Admin erişimi gerekli!' });
-  const { username, full_name, name, email, role, is_active } = req.body;
+  const { username, full_name, name, email, role, is_active, password } = req.body;
   const update = {};
   if (typeof username === 'string' && username.trim().length) update.username = username.trim();
   const displayName = (typeof full_name === 'string' && full_name.trim().length) ? full_name.trim() : ((typeof name === 'string' && name.trim().length) ? name.trim() : undefined);
@@ -300,12 +300,22 @@ app.put('/api/admin/users/:userId', requireAuth, async (req, res) => {
   if (email !== undefined) update.email = email;
   if (role !== undefined) update.role = role;
   if (typeof is_active === 'boolean') update.is_active = is_active;
+  // Şifre kontrolü - boş string değilse ve uzunluğu varsa güncelle
+  if (password !== undefined && typeof password === 'string' && password.trim().length > 0) {
+    update.password = password.trim();
+    console.log(`🔐 Şifre güncelleme isteği: userId=${req.params.userId}, password length=${password.trim().length}`);
+  } else {
+    console.log(`⚠️ Şifre güncelleme yok: password=${password}, type=${typeof password}, length=${password ? password.length : 'N/A'}`);
+  }
   try {
-    await userDB.updateUser(req.params.userId, update);
+    console.log('📝 Update data:', JSON.stringify({ ...update, password: update.password ? '***' : undefined }));
+    console.log('📝 Update keys:', Object.keys(update));
+    const result = await userDB.updateUser(req.params.userId, update);
+    console.log('✅ User update result:', result ? 'Success' : 'Failed');
     res.json({ success:true });
   } catch (e) {
     console.error('User update error:', e);
-    res.status(500).json({ success:false, error:'Kullanıcı güncellenemedi' });
+    res.status(500).json({ success:false, error:'Kullanıcı güncellenemedi: ' + (e.message || 'Bilinmeyen hata') });
   }
 });
 
@@ -382,11 +392,12 @@ app.put('/api/admin/devices/:deviceId', requireAuth, async (req, res) => {
   if (typeof is_active === 'boolean') update.is_active = is_active;
 
   try {
+    console.log('📝 Device update request:', req.params.deviceId, JSON.stringify(update));
     await deviceDB.updateByDeviceId(req.params.deviceId, update);
     res.json({ success:true });
   } catch (e) {
-    console.error('Device update error:', e);
-    res.status(500).json({ error:'Cihaz güncellenemedi' });
+    console.error('❌ Device update error:', e);
+    res.status(500).json({ success:false, error:'Cihaz güncellenemedi: ' + (e.message || 'Bilinmeyen hata') });
   }
 });
 
@@ -673,10 +684,107 @@ app.post('/api/devices/:deviceId/wol-profiles', requireAuth, async (req, res) =>
   }
 });
 
+app.put('/api/devices/:deviceId/wol-profiles/:profileId', requireAuth, async (req, res) => {
+  try {
+    const { deviceId, profileId } = req.params;
+    const { name, mac, broadcast_ip, port } = req.body;
+    const userId = req.userId;
+    
+    console.log(`📝 WOL profili güncelleme isteği: deviceId=${deviceId}, profileId=${profileId}`);
+    
+    // Yetki kontrolü
+    const ownership = await checkDeviceOwnership(deviceId, userId);
+    if (!ownership.allowed) {
+      return res.status(403).json({ error: ownership.reason || 'Yetki yok' });
+    }
+    
+    // Profil var mı kontrol et
+    const profiles = await wolProfilesDB.getProfilesByDevice(deviceId);
+    const profile = profiles.find(p => p.id == profileId);
+    if (!profile) {
+      return res.status(404).json({ error: 'WOL profili bulunamadı' });
+    }
+    
+    // Validasyon ve normalize
+    const updateData = {};
+    if (name !== undefined) {
+      if (!name || name.trim().length === 0) {
+        return res.status(400).json({ error: 'Profil adı boş olamaz' });
+      }
+      updateData.name = name.trim();
+    }
+    if (mac !== undefined) {
+      const normalizedMac = mac.trim().toUpperCase().replace(/[^0-9A-F:]/g, '');
+      if (!/^([0-9A-F]{2}:){5}[0-9A-F]{2}$/.test(normalizedMac)) {
+        return res.status(400).json({ error: 'Geçersiz MAC adresi formatı' });
+      }
+      updateData.mac = normalizedMac;
+    }
+    if (broadcast_ip !== undefined) {
+      const ipPattern = /^(\d{1,3}\.){3}\d{1,3}$/;
+      if (!ipPattern.test(broadcast_ip)) {
+        return res.status(400).json({ error: 'Geçersiz Broadcast IP formatı' });
+      }
+      updateData.broadcast_ip = broadcast_ip;
+    }
+    if (port !== undefined) {
+      const portNum = parseInt(port);
+      if (isNaN(portNum) || portNum < 1 || portNum > 65535) {
+        return res.status(400).json({ error: 'Geçersiz port numarası (1-65535)' });
+      }
+      updateData.port = portNum;
+    }
+    
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({ error: 'Güncellenecek alan belirtilmedi' });
+    }
+    
+    const result = await wolProfilesDB.updateProfile(profileId, updateData);
+    console.log(`✅ WOL profili güncellendi: ${profileId}`);
+    
+    // Cihaza senkronize et
+    setTimeout(async () => {
+      try {
+        const allProfiles = await wolProfilesDB.getProfilesByDevice(deviceId);
+        const syncProfiles = allProfiles.map(p => ({
+          name: p.name,
+          mac: p.mac,
+          broadcast_ip: p.broadcast_ip,
+          port: p.port || 9,
+          ip: '0.0.0.0'
+        }));
+        
+        await sendConfigToDevice(deviceId, {
+          type: 'update_config',
+          device_id: deviceId,
+          // token otomatik olarak sendConfigToDevice içinde eklenecek
+          config: { wol_profiles: syncProfiles },
+          meta: {
+            request_id: crypto.randomUUID(),
+            timestamp: new Date().toISOString()
+          }
+        }, userId);
+        
+        console.log(`📤 Güncellenmiş WOL profilleri cihaza gönderildi: ${deviceId}`);
+      } catch (err) {
+        console.error('❌ WOL profilleri senkronizasyon hatası:', err);
+      }
+    }, 300);
+    
+    res.json({ success: true, profile: { id: profileId, ...updateData } });
+    
+  } catch (error) {
+    console.error('❌ WOL profili güncelleme hatası:', error);
+    res.status(500).json({ error: 'WOL profili güncellenemedi: ' + error.message });
+  }
+});
+
 app.delete('/api/devices/:deviceId/wol-profiles/:profileId', requireAuth, async (req, res) => {
   try {
     const { deviceId, profileId } = req.params;
     const userId = req.userId;
+    
+    console.log(`🗑️ WOL profili silme isteği: deviceId=${deviceId}, profileId=${profileId}`);
     
     // Yetki kontrolü
     const ownership = await checkDeviceOwnership(deviceId, userId);
@@ -685,10 +793,41 @@ app.delete('/api/devices/:deviceId/wol-profiles/:profileId', requireAuth, async 
     }
     
     const result = await wolProfilesDB.deleteProfile(profileId);
+    console.log(`✅ WOL profili silindi: ${profileId}`);
+    
+    // Cihaza senkronize et
+    setTimeout(async () => {
+      try {
+        const allProfiles = await wolProfilesDB.getProfilesByDevice(deviceId);
+        const syncProfiles = allProfiles.map(p => ({
+          name: p.name,
+          mac: p.mac,
+          broadcast_ip: p.broadcast_ip,
+          port: p.port || 9,
+          ip: '0.0.0.0'
+        }));
+        
+        await sendConfigToDevice(deviceId, {
+          type: 'update_config',
+          device_id: deviceId,
+          // token otomatik olarak sendConfigToDevice içinde eklenecek
+          config: { wol_profiles: syncProfiles },
+          meta: {
+            request_id: crypto.randomUUID(),
+            timestamp: new Date().toISOString()
+          }
+        }, userId);
+        
+        console.log(`📤 Güncellenmiş WOL profilleri cihaza gönderildi: ${deviceId}`);
+      } catch (err) {
+        console.error('❌ WOL profilleri senkronizasyon hatası:', err);
+      }
+    }, 300);
+    
     res.json({ success: true, deleted: result.deleted });
     
   } catch (error) {
-    console.error('WOL profili silme hatası:', error);
+    console.error('❌ WOL profili silme hatası:', error);
     res.status(500).json({ error: 'WOL profili silinemedi: ' + error.message });
   }
 });
@@ -801,13 +940,30 @@ async function checkDeviceOwnership(deviceId, userIdOrUsername) {
 // Konfigürasyon gönderme fonksiyonu
 async function sendConfigToDevice(deviceId, payload, userId = null) {
   try {
+    // Eğer payload'ta token yoksa, cihazın aktif token'ını al ve ekle
+    if (!payload.token) {
+      try {
+        const tokenData = await deviceTokensDB.getActiveToken(deviceId);
+        if (tokenData && tokenData.token) {
+          payload.token = tokenData.token;
+          console.log(`🔐 Cihazın aktif token'ı kullanılıyor: ${deviceId} (${tokenData.token.substring(0, 8)}...)`);
+        } else {
+          console.warn(`⚠️ Cihaz için aktif token bulunamadı: ${deviceId} - short-lived token kullanılacak`);
+          payload.token = generateShortLivedToken();
+        }
+      } catch (tokenError) {
+        console.error(`❌ Token alma hatası: ${tokenError.message}`);
+        payload.token = generateShortLivedToken();
+      }
+    }
+    
     const session = wsSessions.get(deviceId);
     
     if (session && session.ws && session.ws.readyState === WebSocket.OPEN) {
       // Cihaz online - doğrudan gönder
       try {
         session.ws.send(JSON.stringify(payload));
-        console.log(`📤 Config gönderildi (online): ${deviceId}`);
+        console.log(`📤 Config gönderildi (online): ${deviceId}, token: ${payload.token.substring(0, 8)}...`);
         
         // Config'i veritabanına kaydet (applied=false)
         await deviceConfigDB.saveConfig(deviceId, payload.config, 1);
@@ -830,7 +986,7 @@ async function sendConfigToDevice(deviceId, payload, userId = null) {
     } else {
       // Cihaz offline - kuyruğa ekle
       await configQueueDB.addToQueue(deviceId, payload);
-      console.log(`📋 Config kuyruğa eklendi (offline): ${deviceId}`);
+      console.log(`📋 Config kuyruğa eklendi (offline): ${deviceId}, token: ${payload.token ? payload.token.substring(0, 8) + '...' : 'YOK'}`);
       
       if (userId) {
         await configHistoryDB.addHistory(deviceId, userId, 'queued', payload.config);
@@ -844,6 +1000,90 @@ async function sendConfigToDevice(deviceId, payload, userId = null) {
       await configHistoryDB.addHistory(deviceId, userId, 'failed', payload.config, error.message);
     }
     return { sent: false, queued: false, message: 'Hata: ' + error.message };
+  }
+}
+
+// Frontend client'lara mesaj gönder (broadcast)
+function broadcastToClients(message) {
+  const msgStr = JSON.stringify(message);
+  wss.clients.forEach(client => {
+    if (client.readyState === WebSocket.OPEN && client.userId) {
+      client.send(msgStr);
+    }
+  });
+}
+
+// WOL profillerini ESP32'den alıp veritabanıyla senkronize et
+async function handleWOLProfilesFromDevice(ws, data) {
+  try {
+    const { deviceId, profiles } = data;
+    
+    if (!deviceId || !Array.isArray(profiles)) {
+      console.log('⚠️ Geçersiz WOL profilleri mesajı:', data);
+      return;
+    }
+    
+    console.log(`📥 ESP32'den WOL profilleri alındı: ${deviceId} (${profiles.length} profil)`);
+    
+    // Veritabanındaki mevcut profilleri al
+    const dbProfiles = await wolProfilesDB.getProfilesByDevice(deviceId);
+    const dbProfilesMap = new Map(dbProfiles.map(p => [p.mac.toUpperCase().replace(/[^0-9A-F:]/g, ''), p]));
+    
+    // ESP32'den gelen profilleri işle
+    for (const espProfile of profiles) {
+      const { name, mac, ip, broadcast_ip, port } = espProfile;
+      
+      if (!name || !mac) {
+        console.log(`⚠️ Geçersiz profil atlanıyor:`, espProfile);
+        continue;
+      }
+      
+      // MAC adresini normalize et
+      const normalizedMac = mac.toUpperCase().replace(/[^0-9A-F:]/g, '');
+      
+      // Veritabanında bu MAC adresiyle profil var mı?
+      const existingProfile = dbProfilesMap.get(normalizedMac);
+      
+      if (existingProfile) {
+        // Profil var - güncelle (sadece farklıysa)
+        const needsUpdate = 
+          existingProfile.name !== name ||
+          existingProfile.broadcast_ip !== (broadcast_ip || '192.168.1.255') ||
+          existingProfile.port !== (port || 9);
+        
+        if (needsUpdate) {
+          console.log(`🔄 Profil güncelleniyor: ${name} (${normalizedMac})`);
+          await wolProfilesDB.updateProfile(existingProfile.id, {
+            name,
+            broadcast_ip: broadcast_ip || '192.168.1.255',
+            port: port || 9
+          });
+        }
+      } else {
+        // Profil yok - ekle
+        console.log(`➕ Yeni profil ekleniyor: ${name} (${normalizedMac})`);
+        await wolProfilesDB.addProfile(
+          deviceId,
+          name,
+          normalizedMac,
+          broadcast_ip || '192.168.1.255',
+          port || 9
+        );
+      }
+    }
+    
+    console.log(`✅ WOL profilleri senkronizasyonu tamamlandı: ${deviceId}`);
+    
+    // Frontend'e bildir (broadcast)
+    const updatedProfiles = await wolProfilesDB.getProfilesByDevice(deviceId);
+    broadcastToClients({
+      type: 'wol_profiles_updated',
+      deviceId,
+      profiles: updatedProfiles
+    });
+    
+  } catch (error) {
+    console.error('❌ WOL profilleri senkronizasyon hatası:', error);
   }
 }
 
@@ -913,10 +1153,22 @@ async function handleDeviceIdentify(ws, data) {
     // Bekleyen konfigürasyonları gönder
     const pendingConfigs = await deviceConfigDB.getPendingConfigs(device_id);
     for (const config of pendingConfigs) {
+      // Cihazın aktif token'ını al
+      let tokenToUse = null;
+      try {
+        const tokenData = await deviceTokensDB.getActiveToken(device_id);
+        if (tokenData && tokenData.token) {
+          tokenToUse = tokenData.token;
+          console.log(`🔐 Bekleyen config için token kullanılıyor: ${device_id} (${tokenToUse.substring(0, 8)}...)`);
+        }
+      } catch (tokenError) {
+        console.error(`❌ Token alma hatası: ${tokenError.message}`);
+      }
+      
       const payload = {
         type: 'update_config',
         device_id,
-        token: generateShortLivedToken(),
+        token: tokenToUse || generateShortLivedToken(),
         config: config.config_json,
         meta: {
           request_id: crypto.randomUUID(),
@@ -1002,6 +1254,9 @@ wss.on("connection", (ws) => {
               });
             }
           }
+        } else if (data.type === 'wol_profiles') {
+          // ESP32'den WOL profilleri geldi - veritabanıyla senkronize et
+          await handleWOLProfilesFromDevice(ws, data);
         } else if (data.type === 'deviceSelection') {
           // Client seçili cihazı değiştirdi
           ws.selectedDeviceId = data.deviceId;

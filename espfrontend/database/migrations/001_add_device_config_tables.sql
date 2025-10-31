@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS wol_profiles (
     broadcast_ip VARCHAR(45) NOT NULL,
     port INTEGER DEFAULT 9,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (device_id) REFERENCES devices(device_id) ON DELETE CASCADE
 );
 

@@ -1260,7 +1260,8 @@ body::before {
       width: 100%;
       justify-content: center;
       font-size: 0.8rem;
-      padding: 0.6rem 1rem;
+      padding: 0.7rem 1rem;
+      min-height: 44px; /* Touch-friendly */
     }
   
     .log-filters, .analytics-filters, .backup-actions {
@@ -1272,6 +1273,8 @@ body::before {
     .log-filters input,
     .analytics-filters select {
       width: 100%;
+      min-height: 44px; /* Touch-friendly */
+      padding: 0.6rem 1rem;
     }
   
     .data-table th,
@@ -1435,6 +1438,126 @@ body::before {
      margin-top: 0.25rem;
      display: block;
    }
+
+   /* Form sections */
+   .form-section {
+     margin-bottom: 2rem;
+     padding-bottom: 1.5rem;
+     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+   }
+
+   .form-section:last-of-type {
+     border-bottom: none;
+     margin-bottom: 0;
+     padding-bottom: 0;
+   }
+
+   .form-section-title {
+     font-size: 1rem;
+     font-weight: 600;
+     color: var(--accent-primary);
+     margin-bottom: 1.2rem;
+     display: flex;
+     align-items: center;
+     gap: 0.5rem;
+   }
+
+   .form-section-title::before {
+     content: '';
+     width: 4px;
+     height: 16px;
+     background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+     border-radius: 2px;
+   }
+
+   /* Password input wrapper */
+   .password-input-wrapper {
+     position: relative;
+     display: flex;
+     align-items: center;
+   }
+
+   .password-input-wrapper input {
+     padding-right: 3.5rem;
+   }
+
+   .password-toggle {
+     position: absolute;
+     right: 1rem;
+     background: transparent;
+     border: none;
+     color: var(--text-secondary);
+     cursor: pointer;
+     padding: 0.5rem;
+     display: flex;
+     align-items: center;
+     justify-content: center;
+     transition: all 0.3s ease;
+     z-index: 10;
+     border-radius: 0.5rem;
+   }
+
+   .password-toggle:hover {
+     color: var(--accent-primary);
+     background: rgba(215, 147, 51, 0.1);
+   }
+
+   .password-toggle:active {
+     transform: scale(0.95);
+   }
+
+   /* Form help text */
+   .form-help-text {
+     display: block;
+     margin-top: 0.5rem;
+     font-size: 0.8rem;
+     color: var(--text-secondary);
+     font-style: italic;
+   }
+
+   /* Required label */
+   .form-group label.required::after {
+     content: ' *';
+     color: var(--danger);
+     font-weight: 700;
+   }
+
+   /* Checkbox label improvements */
+   .checkbox-label {
+     display: flex !important;
+     align-items: center;
+     gap: 0.75rem;
+     cursor: pointer;
+     padding: 0.8rem 1rem;
+     border-radius: 0.8rem;
+     background: rgba(26, 26, 26, 0.4);
+     border: 1.5px solid var(--border-color);
+     transition: all 0.3s ease;
+     user-select: none;
+   }
+
+   .checkbox-label:hover {
+     background: rgba(26, 26, 26, 0.6);
+     border-color: rgba(215, 147, 51, 0.3);
+   }
+
+   .checkbox-label input[type="checkbox"] {
+     width: 20px !important;
+     height: 20px;
+     min-width: 20px;
+     cursor: pointer;
+     accent-color: var(--accent-primary);
+   }
+
+   .checkbox-label span {
+     flex: 1;
+     font-weight: 500;
+   }
+
+   /* Edit user modal specific styles */
+   .edit-user-modal {
+     max-width: 600px;
+   }
    
    .form-success {
      color: #28a745;
@@ -1565,6 +1688,7 @@ body::before {
      .form-actions .btn-secondary {
        width: 100%;
        justify-content: center;
+       min-height: 44px; /* Touch-friendly */
      }
      
      .form-section {
@@ -1933,6 +2057,10 @@ body::before {
     background: #1a1a1a;
     color: #e0e0e0;
     font-size: 0.9rem;
+    min-height: 44px; /* Touch-friendly */
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
   }
 
   .form-group input:focus,

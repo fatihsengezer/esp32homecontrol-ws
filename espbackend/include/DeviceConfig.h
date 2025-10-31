@@ -64,7 +64,7 @@ struct DeviceStatus {
 
 // ==================== WOL YAPILANDIRMASI ====================
 struct WOLDevice {
-  const char* name;
+  char name[32];      // Static buffer - runtime'da değiştirilebilir
   byte mac[6];
   IPAddress ip;
   IPAddress broadcast; // WOL hedef broadcast IP

@@ -1,5 +1,13 @@
 // ==================== ADMIN DASHBOARD JAVASCRIPT ====================
 
+// HTML escape fonksiyonu (XSS koruması)
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 // API Base ve fetch helper (API: 5130, same-site)
 const getApiBaseUrl = () => {
     const protocol = window.location.protocol;
@@ -178,6 +186,20 @@ async function editUser(userId) {
         document.getElementById('edit-email').value = user.email || '';
         document.getElementById('edit-role').value = user.role;
         document.getElementById('edit-active').checked = user.is_active;
+        // Şifre alanını temizle
+        const passwordInput = document.getElementById('edit-password');
+        if (passwordInput) {
+            passwordInput.value = '';
+            // Şifre input tipini kontrol et
+            if (passwordInput.type === 'text') {
+                passwordInput.type = 'password';
+                const icon = document.getElementById('edit-password-icon');
+                if (icon) {
+                    icon.classList.remove('fa-eye-slash');
+                    icon.classList.add('fa-eye');
+                }
+            }
+        }
 
         // Kullanıcıya cihaz atama alanı
         const form = document.getElementById('edit-user-form');
@@ -212,6 +234,16 @@ function closeEditUserModal() {
     const modal = document.getElementById('edit-user-modal');
     modal.style.display = 'none';
     modal.classList.remove('active');
+    // Form'u temizle
+    const form = document.getElementById('edit-user-form');
+    if (form) {
+        form.reset();
+        // Cihaz atama container'ını temizle
+        const deviceContainer = document.getElementById('user-device-assign');
+        if (deviceContainer) {
+            deviceContainer.parentElement.remove();
+        }
+    }
 }
 
 // Edit user form submit
@@ -223,31 +255,63 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             
             const userId = document.getElementById('edit-user-id').value;
+            const passwordInput = document.getElementById('edit-password');
+            const password = passwordInput ? passwordInput.value.trim() : '';
+            
             const formData = {
-                username: document.getElementById('edit-username').value,
-                name: document.getElementById('edit-name').value,
-                email: document.getElementById('edit-email').value,
+                username: document.getElementById('edit-username').value.trim(),
+                name: document.getElementById('edit-name').value.trim(),
+                email: document.getElementById('edit-email').value.trim(),
                 role: document.getElementById('edit-role').value,
                 is_active: document.getElementById('edit-active').checked
             };
             
+            // Şifre alanı doldurulmuşsa ekle (boş string gönderme)
+            if (password && password.length > 0) {
+                formData.password = password;
+                console.log('🔐 Şifre güncelleme gönderiliyor...');
+            }
+            
             try {
-                const response = await apiFetch(`/api/admin/users/${userId}`, { method: 'PUT', body: JSON.stringify(formData) });
+                console.log('📤 Form data gönderiliyor:', { ...formData, password: formData.password ? '***' : undefined });
+                const response = await apiFetch(`/api/admin/users/${userId}`, { 
+                    method: 'PUT', 
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData) 
+                });
                 const data = await response.json().catch(() => ({}));
                 if (response.ok && data.success) {
-                    alert('Kullanıcı başarıyla güncellendi');
+                    showToast('Kullanıcı başarıyla güncellendi', 'success');
                     closeEditUserModal();
                     loadUsers(); // Kullanıcı listesini yenile
                 } else {
-                    alert('Kullanıcı güncellenemedi' + (data.error ? (': ' + data.error) : ''));
+                    showToast('Kullanıcı güncellenemedi' + (data.error ? (': ' + data.error) : ''), 'error');
+                    console.error('❌ Update error:', data);
                 }
             } catch (error) {
-                console.error('Kullanıcı güncelleme hatası:', error);
-                alert('Kullanıcı güncellenemedi');
+                console.error('❌ Kullanıcı güncelleme hatası:', error);
+                showToast('Kullanıcı güncellenemedi: ' + error.message, 'error');
             }
         });
     }
 });
+
+// Şifre görünürlüğünü toggle et
+function togglePasswordVisibility(inputId) {
+    const input = document.getElementById(inputId);
+    const icon = document.getElementById(inputId + '-icon');
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+    } else {
+        input.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+    }
+}
 
 function showAddUserModal() {
     // basitleştirilmiş modal oluşturma (mevcut showModal kullanılıyorsa onunla entegre olur)
@@ -559,6 +623,14 @@ function setupWebSocket() {
     adminWS.onmessage = (event) => {
         try {
             const data = JSON.parse(event.data);
+            
+            // WOL profilleri güncellendi - seçili cihazsa listeyi yenile
+            if (data.type === 'wol_profiles_updated' && data.deviceId === selectedDeviceId) {
+                console.log('📥 WOL profilleri güncellendi (WebSocket):', data);
+                loadWolProfiles();
+            }
+            
+            // Cihaz güncellendi
             if (data.type === 'deviceUpdated') {
                 console.log('Cihaz güncellendi:', data.deviceId, data.action);
                 // Cihaz yönetimi sekmesi aktifse listeyi yenile
@@ -1032,25 +1104,29 @@ async function loadWolProfiles() {
             const profilesList = document.getElementById('wol-profiles-list');
             profilesList.innerHTML = '';
             
-            data.profiles.forEach(profile => {
-                const profileItem = document.createElement('div');
-                profileItem.className = 'wol-profile-item';
-                profileItem.innerHTML = `
-                    <div class="wol-profile-info">
-                        <div class="wol-profile-name">${profile.name}</div>
-                        <div class="wol-profile-details">${profile.mac} | ${profile.broadcast_ip}:${profile.port}</div>
-                    </div>
-                    <div class="wol-profile-actions">
-                        <button class="btn-small" onclick="syncWolProfilesToDevice()" title="Cihaza Senkronize Et">
-                            <i class="fas fa-cloud-upload-alt"></i>
-                        </button>
-                        <button class="btn-small btn-danger" onclick="deleteWolProfile(${profile.id})">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                `;
-                profilesList.appendChild(profileItem);
-            });
+            if (data.profiles.length === 0) {
+                profilesList.innerHTML = '<div class="wol-profile-empty">Henüz WOL profili eklenmemiş. "WOL Profili Ekle" butonuna tıklayarak ekleyebilirsiniz.</div>';
+            } else {
+                data.profiles.forEach(profile => {
+                    const profileItem = document.createElement('div');
+                    profileItem.className = 'wol-profile-item';
+                    profileItem.innerHTML = `
+                        <div class="wol-profile-info">
+                            <div class="wol-profile-name">${escapeHtml(profile.name)}</div>
+                            <div class="wol-profile-details">${escapeHtml(profile.mac)} | ${escapeHtml(profile.broadcast_ip)}:${profile.port}</div>
+                        </div>
+                        <div class="wol-profile-actions">
+                            <button class="btn-small btn-edit" onclick="editWolProfile(${profile.id})" title="Düzenle">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn-small btn-danger" onclick="deleteWolProfile(${profile.id})" title="Sil">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    `;
+                    profilesList.appendChild(profileItem);
+                });
+            }
         }
     } catch (error) {
         console.error('WOL profilleri yüklenemedi:', error);
@@ -1089,22 +1165,63 @@ function closeAddWolProfileModal() {
     }
 }
 
+// MAC adresi formatını normalize et (AA:BB:CC:DD:EE:FF formatına çevir)
+function normalizeMacAddress(mac) {
+    // Boşlukları ve büyük/küçük harfleri normalize et
+    mac = mac.trim().toUpperCase();
+    // Tireleri iki noktaya çevir
+    mac = mac.replace(/-/g, ':');
+    // Boşlukları kaldır
+    mac = mac.replace(/\s/g, '');
+    // MAC formatını kontrol et (AA:BB:CC:DD:EE:FF veya AABBCCDDEEFF)
+    if (/^([0-9A-F]{2}:){5}[0-9A-F]{2}$/.test(mac)) {
+        return mac; // Zaten doğru format
+    } else if (/^[0-9A-F]{12}$/.test(mac)) {
+        // AABBCCDDEEFF formatını AA:BB:CC:DD:EE:FF formatına çevir
+        return mac.match(/.{1,2}/g).join(':');
+    }
+    return null; // Geçersiz format
+}
+
+// MAC adresi validasyonu
+function validateMacAddress(mac) {
+    if (!mac) return false;
+    const normalized = normalizeMacAddress(mac);
+    if (!normalized) return false;
+    // AA:BB:CC:DD:EE:FF formatını kontrol et
+    return /^([0-9A-F]{2}:){5}[0-9A-F]{2}$/.test(normalized);
+}
+
 // WOL profili ekle
 async function addWolProfile() {
-    const name = document.getElementById('wol-profile-name').value;
-    const mac = document.getElementById('wol-profile-mac').value;
-    const broadcast = document.getElementById('wol-profile-broadcast').value;
-    const port = document.getElementById('wol-profile-port').value;
+    const name = document.getElementById('wol-profile-name').value.trim();
+    let mac = document.getElementById('wol-profile-mac').value.trim();
+    const broadcast = document.getElementById('wol-profile-broadcast').value.trim();
+    const port = document.getElementById('wol-profile-port').value || '9';
     
     if (!name || !mac || !broadcast) {
         showToast('Tüm alanlar gerekli', 'warning');
         return;
     }
     
+    // MAC adresini normalize et
+    const normalizedMac = normalizeMacAddress(mac);
+    if (!normalizedMac) {
+        showToast('Geçersiz MAC adresi formatı! Format: AA:BB:CC:DD:EE:FF veya AABBCCDDEEFF', 'error');
+        return;
+    }
+    
+    // IP validasyonu (basit)
+    const ipPattern = /^(\d{1,3}\.){3}\d{1,3}$/;
+    if (!ipPattern.test(broadcast)) {
+        showToast('Geçersiz Broadcast IP formatı!', 'error');
+        return;
+    }
+    
     try {
         const response = await apiFetch(`/api/devices/${selectedDeviceId}/wol-profiles`, {
             method: 'POST',
-            body: JSON.stringify({ name, mac, broadcast_ip: broadcast, port: parseInt(port) })
+            body: JSON.stringify({ name, mac: normalizedMac, broadcast_ip: broadcast, port: parseInt(port) || 9 })
         });
         
         const data = await response.json();
@@ -1112,13 +1229,14 @@ async function addWolProfile() {
             showToast('WOL profili eklendi', 'success');
             closeAddWolProfileModal();
             loadWolProfiles();
-        setTimeout(() => { syncWolProfilesToDevice(); }, 300);
+            // Ekleme işleminden sonra cihaza senkronize et
+            setTimeout(() => { syncWolProfilesToDevice(); }, 300);
         } else {
-            showToast('WOL profili eklenemedi: ' + data.error, 'error');
+            showToast('WOL profili eklenemedi: ' + (data.error || 'Bilinmeyen hata'), 'error');
         }
     } catch (error) {
         console.error('WOL profili ekleme hatası:', error);
-        showToast('WOL profili eklenemedi', 'error');
+        showToast('WOL profili eklenemedi: ' + error.message, 'error');
     }
 }
 
@@ -1160,6 +1278,112 @@ async function syncWolProfilesToDevice() {
     }
 }
 
+// WOL profili düzenle
+async function editWolProfile(profileId) {
+    if (!selectedDeviceId) {
+        showToast('Lütfen bir cihaz seçin', 'warning');
+        return;
+    }
+    
+    try {
+        const response = await apiFetch(`/api/devices/${selectedDeviceId}/wol-profiles`);
+        const data = await response.json();
+        
+        if (!data.success) {
+            showToast('WOL profilleri alınamadı', 'error');
+            return;
+        }
+        
+        const profile = data.profiles.find(p => p.id == profileId);
+        if (!profile) {
+            showToast('Profil bulunamadı', 'error');
+            return;
+        }
+        
+        // Modal'ı doldur
+        document.getElementById('edit-wol-profile-id').value = profile.id;
+        document.getElementById('edit-wol-profile-name').value = profile.name;
+        document.getElementById('edit-wol-profile-mac').value = profile.mac;
+        document.getElementById('edit-wol-profile-broadcast').value = profile.broadcast_ip;
+        document.getElementById('edit-wol-profile-port').value = profile.port || 9;
+        
+        // Modal'ı göster
+        const modal = document.getElementById('edit-wol-profile-modal');
+        if (modal) {
+            modal.classList.add('active');
+            modal.style.display = 'flex';
+        }
+    } catch (error) {
+        console.error('WOL profili düzenleme hatası:', error);
+        showToast('Profil bilgileri alınamadı', 'error');
+    }
+}
+
+// WOL profili güncelle
+async function updateWolProfile() {
+    const profileId = document.getElementById('edit-wol-profile-id').value;
+    const name = document.getElementById('edit-wol-profile-name').value.trim();
+    let mac = document.getElementById('edit-wol-profile-mac').value.trim();
+    const broadcast = document.getElementById('edit-wol-profile-broadcast').value.trim();
+    const port = document.getElementById('edit-wol-profile-port').value || '9';
+    
+    if (!name || !mac || !broadcast) {
+        showToast('Tüm alanlar gerekli', 'warning');
+        return;
+    }
+    
+    // MAC adresini normalize et
+    const normalizedMac = normalizeMacAddress(mac);
+    if (!normalizedMac) {
+        showToast('Geçersiz MAC adresi formatı! Format: AA:BB:CC:DD:EE:FF', 'error');
+        return;
+    }
+    
+    // IP validasyonu
+    const ipPattern = /^(\d{1,3}\.){3}\d{1,3}$/;
+    if (!ipPattern.test(broadcast)) {
+        showToast('Geçersiz Broadcast IP formatı!', 'error');
+        return;
+    }
+    
+    try {
+        const response = await apiFetch(`/api/devices/${selectedDeviceId}/wol-profiles/${profileId}`, {
+            method: 'PUT',
+            body: JSON.stringify({
+                name,
+                mac: normalizedMac,
+                broadcast_ip: broadcast,
+                port: parseInt(port) || 9
+            })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            showToast('WOL profili güncellendi', 'success');
+            closeEditWolProfileModal();
+            loadWolProfiles();
+        } else {
+            showToast('WOL profili güncellenemedi: ' + (data.error || 'Bilinmeyen hata'), 'error');
+        }
+    } catch (error) {
+        console.error('WOL profili güncelleme hatası:', error);
+        showToast('WOL profili güncellenemedi: ' + error.message, 'error');
+    }
+}
+
+// Edit WOL profil modal'ını kapat
+function closeEditWolProfileModal() {
+    const modal = document.getElementById('edit-wol-profile-modal');
+    if (modal) {
+        modal.classList.remove('active');
+        modal.style.display = 'none';
+        const form = document.getElementById('edit-wol-profile-form');
+        if (form) {
+            form.reset();
+        }
+    }
+}
+
 // WOL profili sil
 async function deleteWolProfile(profileId) {
     if (!confirm('Bu WOL profilini silmek istediğinizden emin misiniz?')) return;
@@ -1173,6 +1397,7 @@ async function deleteWolProfile(profileId) {
         if (data.success) {
             showToast('WOL profili silindi', 'success');
             loadWolProfiles();
+            // Server tarafından otomatik senkronize ediliyor
         } else {
             showToast('WOL profili silinemedi: ' + data.error, 'error');
         }

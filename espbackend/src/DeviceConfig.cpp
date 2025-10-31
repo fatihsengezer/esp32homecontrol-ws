@@ -9,7 +9,10 @@
 #define WOL_DEVICE_COUNT 0
 #endif
 
-WOLDevice wolDevices[] = WOL_DEVICES_INIT;
+// WOL cihazları için sabit boyutlu array (MAX_WOL_DEVICES)
+// Compile-time'da WOL_DEVICES_INIT ile initialize edilebilir
+// Runtime'da Preferences'tan yüklendiğinde üzerine yazılır
+WOLDevice wolDevices[MAX_WOL_DEVICES] = WOL_DEVICES_INIT;
 int wolDeviceCount = WOL_DEVICE_COUNT;
 #include <ArduinoJson.h>
 #include <WiFi.h>

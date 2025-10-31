@@ -636,9 +636,9 @@
 
   <!-- Edit User Modal -->
   <div id="edit-user-modal" class="modal-overlay" onclick="closeEditUserModal()">
-    <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal edit-user-modal" onclick="event.stopPropagation()">
       <div class="modal-header">
-        <h3>Kullanıcı Düzenle</h3>
+        <h3><i class="fas fa-user-edit"></i> Kullanıcı Düzenle</h3>
         <button class="modal-close" onclick="closeEditUserModal()">
           <i class="fas fa-times"></i>
         </button>
@@ -646,34 +646,61 @@
       <div class="modal-body">
         <form id="edit-user-form">
           <input type="hidden" id="edit-user-id">
-          <div class="form-group">
-            <label>Kullanıcı Adı</label>
-            <input type="text" id="edit-username" required>
+          
+          <div class="form-section">
+            <h4 class="form-section-title">Temel Bilgiler</h4>
+            <div class="form-group">
+              <label for="edit-username" class="required">Kullanıcı Adı</label>
+              <input type="text" id="edit-username" required placeholder="Kullanıcı adını girin">
+            </div>
+            <div class="form-group">
+              <label for="edit-name">Ad Soyad</label>
+              <input type="text" id="edit-name" placeholder="Ad Soyad">
+            </div>
+            <div class="form-group">
+              <label for="edit-email">E-posta</label>
+              <input type="email" id="edit-email" placeholder="email@example.com">
+            </div>
           </div>
-          <div class="form-group">
-            <label>Ad Soyad</label>
-            <input type="text" id="edit-name">
+
+          <div class="form-section">
+            <h4 class="form-section-title">Güvenlik</h4>
+            <div class="form-group">
+              <label for="edit-password">Yeni Şifre</label>
+              <div class="password-input-wrapper">
+                <input type="password" id="edit-password" placeholder="Şifre değiştirmek için yeni şifre girin">
+                <button type="button" class="password-toggle" onclick="togglePasswordVisibility('edit-password')">
+                  <i class="fas fa-eye" id="edit-password-icon"></i>
+                </button>
+              </div>
+              <small class="form-help-text">Boş bırakılırsa şifre değiştirilmez</small>
+            </div>
           </div>
-          <div class="form-group">
-            <label>E-posta</label>
-            <input type="email" id="edit-email">
+
+          <div class="form-section">
+            <h4 class="form-section-title">Yetkiler</h4>
+            <div class="form-group">
+              <label for="edit-role">Rol</label>
+              <select id="edit-role">
+                <option value="user">Kullanıcı</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="edit-active">
+                <span>Hesap Aktif</span>
+              </label>
+            </div>
           </div>
-          <div class="form-group">
-            <label>Rol</label>
-            <select id="edit-role">
-              <option value="user">Kullanıcı</option>
-              <option value="admin">Admin</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>
-              <input type="checkbox" id="edit-active">
-              Aktif
-            </label>
-          </div>
+
           <div class="form-actions">
-            <button type="button" class="btn-secondary" onclick="closeEditUserModal()">İptal</button>
-            <button type="submit" class="btn-primary">Güncelle</button>
+            <button type="button" class="btn-secondary" onclick="closeEditUserModal()">
+              <i class="fas fa-times"></i> İptal
+            </button>
+            <button type="submit" class="btn-primary">
+              <i class="fas fa-save"></i> Güncelle
+            </button>
           </div>
         </form>
       </div>
@@ -684,7 +711,7 @@
   <div id="add-wol-profile-modal" class="modal-overlay" onclick="closeAddWolProfileModal()">
     <div class="modal" onclick="event.stopPropagation()">
       <div class="modal-header">
-        <h3>WOL Profili Ekle</h3>
+        <h3><i class="fas fa-plus"></i> WOL Profili Ekle</h3>
         <button class="modal-close" onclick="closeAddWolProfileModal()">
           <i class="fas fa-times"></i>
         </button>
@@ -698,6 +725,7 @@
           <div class="form-group">
             <label for="wol-profile-mac">MAC Adresi:</label>
             <input type="text" id="wol-profile-mac" placeholder="AA:BB:CC:DD:EE:FF" required>
+            <small class="form-help-text">Format: AA:BB:CC:DD:EE:FF veya AABBCCDDEEFF</small>
           </div>
           <div class="form-group">
             <label for="wol-profile-broadcast">Broadcast IP:</label>
@@ -708,8 +736,50 @@
             <input type="number" id="wol-profile-port" value="9" min="1" max="65535">
           </div>
           <div class="form-actions">
-            <button type="button" class="btn-primary" onclick="addWolProfile()">Ekle</button>
+            <button type="button" class="btn-primary" onclick="addWolProfile()">
+              <i class="fas fa-plus"></i> Ekle
+            </button>
             <button type="button" class="btn-secondary" onclick="closeAddWolProfileModal()">İptal</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit WOL Profile Modal -->
+  <div id="edit-wol-profile-modal" class="modal-overlay" onclick="closeEditWolProfileModal()">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3><i class="fas fa-edit"></i> WOL Profili Düzenle</h3>
+        <button class="modal-close" onclick="closeEditWolProfileModal()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <form id="edit-wol-profile-form">
+          <input type="hidden" id="edit-wol-profile-id">
+          <div class="form-group">
+            <label for="edit-wol-profile-name">Profil Adı:</label>
+            <input type="text" id="edit-wol-profile-name" placeholder="PC-Fatih" required>
+          </div>
+          <div class="form-group">
+            <label for="edit-wol-profile-mac">MAC Adresi:</label>
+            <input type="text" id="edit-wol-profile-mac" placeholder="AA:BB:CC:DD:EE:FF" required>
+            <small class="form-help-text">Format: AA:BB:CC:DD:EE:FF veya AABBCCDDEEFF</small>
+          </div>
+          <div class="form-group">
+            <label for="edit-wol-profile-broadcast">Broadcast IP:</label>
+            <input type="text" id="edit-wol-profile-broadcast" placeholder="192.168.1.255" required>
+          </div>
+          <div class="form-group">
+            <label for="edit-wol-profile-port">Port:</label>
+            <input type="number" id="edit-wol-profile-port" value="9" min="1" max="65535">
+          </div>
+          <div class="form-actions">
+            <button type="button" class="btn-primary" onclick="updateWolProfile()">
+              <i class="fas fa-save"></i> Güncelle
+            </button>
+            <button type="button" class="btn-secondary" onclick="closeEditWolProfileModal()">İptal</button>
           </div>
         </form>
       </div>

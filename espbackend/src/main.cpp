@@ -4,6 +4,7 @@
 #include <WiFiClientSecure.h>
 #include <Preferences.h>
 #include <ArduinoJson.h>
+#include <string.h>  // memset için
 #include "password.h"
 #include "Buzzer.h"
 #include "StatusLED.h"
@@ -52,38 +53,93 @@ static bool parseMac(const String &macStr, byte out[6]) {
 }
 
 void loadWOLProfilesFromPrefs() {
-  if (!wolPrefs.begin("wolconfig", true)) return;
+  if (!wolPrefs.begin("wolconfig", true)) {
+    Serial.println("⚠️ WOL Preferences açılamadı, compile-time profiller kullanılacak");
+    return;
+  }
   String json = wolPrefs.getString("profiles", "");
   wolPrefs.end();
-  if (json.length() == 0) return;
+  
+  if (json.length() == 0) {
+    Serial.println("ℹ️ WOL profilleri Preferences'ta yok, compile-time profiller kullanılıyor");
+    return;
+  }
 
+  Serial.println("📥 WOL profilleri Preferences'tan yükleniyor...");
   StaticJsonDocument<2048> doc;
   DeserializationError err = deserializeJson(doc, json);
-  if (err) return;
-  if (!doc.is<JsonArray>()) return;
+  if (err) {
+    Serial.println("❌ WOL profilleri parse edilemedi: " + String(err.c_str()));
+    return;
+  }
+  if (!doc.is<JsonArray>()) {
+    Serial.println("❌ WOL profilleri JSON array değil");
+    return;
+  }
 
   JsonArray arr = doc.as<JsonArray>();
   int count = 0;
+  IPAddress defaultBroadcast;
+  defaultBroadcast.fromString(String(WOL_BROADCAST_IP));
+  
+  // Önce tüm cihazları temizle (compile-time initialization'ı sıfırla)
+  for (int i = 0; i < MAX_WOL_DEVICES; i++) {
+    strncpy(wolDevices[i].name, "", 32);  // String'i temizle
+    wolDevices[i].name[0] = '\0';
+    memset(wolDevices[i].mac, 0, 6);
+    wolDevices[i].ip = IPAddress(0, 0, 0, 0);
+    wolDevices[i].broadcast = defaultBroadcast;
+    wolDevices[i].port = 9;
+    wolDevices[i].status = WOLDevice::OFFLINE;
+    wolDevices[i].bootStartTime = 0;
+  }
+  
+  // JSON'dan yükle
   for (JsonObject p : arr) {
-    if (count >= MAX_WOL_DEVICES) break;
-    const char* name = p["name"] | "WOL";
-    const char* mac = p["mac"] | "";
-    const char* bcast = p["broadcast_ip"] | "";
+    if (count >= MAX_WOL_DEVICES) {
+      Serial.println("⚠️ MAX_WOL_DEVICES limitine ulaşıldı, fazla profiller yüklenmedi");
+      break;
+    }
+    
+    String name = p["name"].as<String>();
+    String mac = p["mac"].as<String>();
+    String bcast = p["broadcast_ip"] | String(WOL_BROADCAST_IP);
     uint16_t port = p["port"] | 9;
-    const char* ipStr = p["ip"] | "0.0.0.0";
+    String ipStr = p["ip"] | "0.0.0.0";
 
-    wolDevices[count].name = name;
-    byte macb[6];
-    if (parseMac(String(mac), macb)) memcpy(wolDevices[count].mac, macb, 6);
-    IPAddress ip; ip.fromString(String(ipStr)); wolDevices[count].ip = ip;
-    IPAddress bc; if (!String(bcast).length()) { bc.fromString(String(WOL_BROADCAST_IP)); } else { bc.fromString(String(bcast)); }
-    wolDevices[count].broadcast = bc;
-    wolDevices[count].port = port;
+    // Name'i direkt olarak kopyala (struct'ta artık char name[32] var)
+    name.toCharArray(wolDevices[count].name, 32);
+    
+    byte macb[6] = {0};
+    if (parseMac(mac, macb)) {
+      memcpy(wolDevices[count].mac, macb, 6);
+    } else {
+      Serial.println("❌ Geçersiz MAC adresi: " + mac);
+      continue; // Bu profili atla
+    }
+    
+    IPAddress ip;
+    ip.fromString(ipStr);
+    wolDevices[count].ip = ip;
+    
+    IPAddress bc;
+    if (bcast.length() > 0) {
+      bc.fromString(bcast);
+      wolDevices[count].broadcast = bc;
+    } else {
+      wolDevices[count].broadcast = defaultBroadcast;
+    }
+    
+    wolDevices[count].port = port > 0 ? port : 9;
     wolDevices[count].status = WOLDevice::OFFLINE;
     wolDevices[count].bootStartTime = 0;
+    
+    Serial.println("✅ WOL profili yüklendi: " + name + " (" + mac + ")");
     count++;
   }
+  
   wolDeviceCount = count;
+  Serial.println("📦 Toplam " + String(count) + " WOL profili yüklendi");
 }
 
 bool saveWOLProfilesToPrefs(const String &json) {
@@ -115,6 +171,18 @@ bool hasIdButNotForThisDevice(const String &msg) {
   return targetId.length() > 0 && targetId != String(DEVICE_ID);
 }
 
+// MAC adresini string formatına çevir (AA:BB:CC:DD:EE:FF)
+String macToString(byte mac[6]) {
+  String result = "";
+  for (int i = 0; i < 6; i++) {
+    if (i > 0) result += ":";
+    if (mac[i] < 16) result += "0";
+    result += String(mac[i], HEX);
+  }
+  result.toUpperCase();
+  return result;
+}
+
 // ----------------- Cihaz yeteneklerini gönder -----------------
 void sendCapabilities() {
   // JSON: { type:"capabilities", deviceId, relayCount, wol:[{index,name},...] }
@@ -130,7 +198,42 @@ void sendCapabilities() {
   json += "]";
   json += "}";
   webSocket.sendTXT(json);
-  Serial.println("Capabilities gönderildi: " + json);
+  Serial.println("📤 Capabilities gönderildi: " + json);
+}
+
+// ----------------- WOL profillerini detaylı gönder -----------------
+void sendWOLProfiles() {
+  // JSON: { type:"wol_profiles", deviceId, profiles:[{name,mac,ip,broadcast,port},...] }
+  StaticJsonDocument<4096> doc;
+  doc["type"] = "wol_profiles";
+  doc["deviceId"] = String(DEVICE_ID);
+  JsonArray profiles = doc.createNestedArray("profiles");
+  
+  for (int i = 0; i < wolDeviceCount; i++) {
+    JsonObject profile = profiles.createNestedObject();
+    profile["index"] = i;
+    profile["name"] = String(wolDevices[i].name);
+    profile["mac"] = macToString(wolDevices[i].mac);
+    profile["ip"] = wolDevices[i].ip.toString();
+    profile["broadcast_ip"] = wolDevices[i].broadcast.toString();
+    profile["port"] = wolDevices[i].port;
+    
+    // Status bilgisi
+    String statusStr;
+    switch(wolDevices[i].status) {
+      case WOLDevice::OFFLINE: statusStr = "OFFLINE"; break;
+      case WOLDevice::BOOTING: statusStr = "BOOTING"; break;
+      case WOLDevice::RUNNING: statusStr = "RUNNING"; break;
+      case WOLDevice::FAILED:  statusStr = "FAILED"; break;
+      default: statusStr = "UNKNOWN"; break;
+    }
+    profile["status"] = statusStr;
+  }
+  
+  String output;
+  serializeJson(doc, output);
+  webSocket.sendTXT(output);
+  Serial.println("📤 WOL profilleri gönderildi (" + String(wolDeviceCount) + " profil): " + output);
 }
 
 // ----------------- Status gönder -----------------
@@ -261,20 +364,40 @@ String getValue(String data, String key) {
 String deviceToken = "";
 String pairingToken = "";
 bool isPaired = false;
+Preferences tokenPrefs;
 
-// Token kaydetme (EEPROM veya NVS)
+// Token kaydetme (Preferences - kalıcı depolama)
 void saveToken(String token) {
   // Token'daki çift tırnakları temizle
   deviceToken = token;
   deviceToken.replace("\"", "");
-  // TODO: EEPROM veya NVS'ye kaydet
-  Serial.println("Token kaydedildi: " + deviceToken.substring(0, 8) + "...");
+  
+  // Preferences'a kaydet (kalıcı)
+  if (tokenPrefs.begin("devicetoken", false)) {
+    tokenPrefs.putString("token", deviceToken);
+    tokenPrefs.end();
+    Serial.println("✅ Token kaydedildi (Preferences): " + deviceToken.substring(0, 8) + "...");
+  } else {
+    Serial.println("❌ Token Preferences açılamadı");
+  }
 }
 
-// Token yükleme (EEPROM veya NVS'den)
+// Token yükleme (Preferences'tan)
 String loadToken() {
-  // TODO: EEPROM veya NVS'den yükle
-  return deviceToken;
+  if (tokenPrefs.begin("devicetoken", true)) {
+    String savedToken = tokenPrefs.getString("token", "");
+    tokenPrefs.end();
+    if (savedToken.length() > 0) {
+      deviceToken = savedToken;
+      Serial.println("✅ Token yüklendi (Preferences): " + deviceToken.substring(0, 8) + "...");
+      return deviceToken;
+    } else {
+      Serial.println("ℹ️ Preferences'ta kayıtlı token yok");
+    }
+  } else {
+    Serial.println("❌ Token Preferences açılamadı");
+  }
+  return "";
 }
 
 // ----------------- Config Handling -----------------
@@ -347,11 +470,35 @@ void handleConfigMessage(String message) {
     String requestId = doc["meta"]["request_id"].as<String>();
     String token = doc["token"].as<String>();
 
-    // Token doğrulama (basit)
-    if (token.length() > 0 && token != deviceToken && token != pairingToken) {
-      Serial.println("Geçersiz token");
-      sendConfigAck(requestId, false, "Geçersiz token");
-      return;
+    // Token doğrulama (detaylı loglama ile)
+    Serial.println("🔐 Token kontrolü:");
+    Serial.println("   - Gelen token: " + token.substring(0, 8) + "... (length: " + String(token.length()) + ")");
+    Serial.println("   - deviceToken: " + (deviceToken.length() > 0 ? deviceToken.substring(0, 8) + "... (length: " + String(deviceToken.length()) + ")" : "BOŞ"));
+    Serial.println("   - pairingToken: " + (pairingToken.length() > 0 ? pairingToken.substring(0, 8) + "... (length: " + String(pairingToken.length()) + ")" : "BOŞ"));
+    
+    // Token boşsa veya eşleşmiyorsa
+    if (token.length() > 0) {
+      bool tokenValid = false;
+      
+      // deviceToken ile karşılaştır
+      if (deviceToken.length() > 0 && token == deviceToken) {
+        tokenValid = true;
+        Serial.println("   ✅ Token eşleşti (deviceToken)");
+      }
+      
+      // pairingToken ile karşılaştır
+      if (!tokenValid && pairingToken.length() > 0 && token == pairingToken) {
+        tokenValid = true;
+        Serial.println("   ✅ Token eşleşti (pairingToken)");
+      }
+      
+      if (!tokenValid) {
+        Serial.println("   ❌ Geçersiz token - eşleşme bulunamadı");
+        sendConfigAck(requestId, false, "Geçersiz token");
+        return;
+      }
+    } else {
+      Serial.println("   ⚠️ Token boş, ancak işleme devam ediliyor");
     }
 
     JsonVariant cfg = doc["config"];
@@ -374,17 +521,22 @@ void handleConfigMessage(String message) {
         String arrStr;
         serializeJson(cfg["wol_profiles"], arrStr);
         newConfig.wol_profiles = arrStr;
+        Serial.println("📦 WOL profilleri alındı (JSON array): " + arrStr.substring(0, min(100, (int)arrStr.length())) + "...");
       } else if (cfg["wol_profiles"].is<const char*>()) {
         newConfig.wol_profiles = String(cfg["wol_profiles"].as<const char*>());
+        Serial.println("📦 WOL profilleri alındı (string): " + newConfig.wol_profiles.substring(0, min(100, (int)newConfig.wol_profiles.length())) + "...");
       }
     }
 
     if (newConfig.wol_profiles.length() > 0) {
+      Serial.println("🔄 WOL profilleri güncelleniyor...");
       if (updateWOLProfilesFromJson(newConfig.wol_profiles)) {
-        Serial.println("WOL profilleri güncellendi ve kaydedildi");
+        Serial.println("✅ WOL profilleri güncellendi ve kaydedildi (" + String(wolDeviceCount) + " profil)");
       } else {
-        Serial.println("WOL profilleri güncellenemedi (parse/persist hatası)");
+        Serial.println("❌ WOL profilleri güncellenemedi (parse/persist hatası)");
       }
+    } else {
+      Serial.println("ℹ️ WOL profilleri config'de yok, mevcut profiller korunuyor");
     }
 
     applyConfig(newConfig);
@@ -396,10 +548,34 @@ void handleConfigMessage(String message) {
   String requestId = getValue(message, "request_id");
   String token = getValue(message, "token");
 
-  if (token.length() > 0 && token != deviceToken && token != pairingToken) {
-    Serial.println("Geçersiz token");
-    sendConfigAck(requestId, false, "Geçersiz token");
-    return;
+  // Token doğrulama (fallback parser için)
+  Serial.println("🔐 Token kontrolü (fallback parser):");
+  Serial.println("   - Gelen token: " + (token.length() > 8 ? token.substring(0, 8) + "..." : token) + " (length: " + String(token.length()) + ")");
+  Serial.println("   - deviceToken: " + (deviceToken.length() > 0 ? deviceToken.substring(0, 8) + "... (length: " + String(deviceToken.length()) + ")" : "BOŞ"));
+  Serial.println("   - pairingToken: " + (pairingToken.length() > 0 ? pairingToken.substring(0, 8) + "... (length: " + String(pairingToken.length()) + ")" : "BOŞ"));
+  
+  if (token.length() > 0) {
+    bool tokenValid = false;
+    
+    // deviceToken ile karşılaştır
+    if (deviceToken.length() > 0 && token == deviceToken) {
+      tokenValid = true;
+      Serial.println("   ✅ Token eşleşti (deviceToken)");
+    }
+    
+    // pairingToken ile karşılaştır
+    if (!tokenValid && pairingToken.length() > 0 && token == pairingToken) {
+      tokenValid = true;
+      Serial.println("   ✅ Token eşleşti (pairingToken)");
+    }
+    
+    if (!tokenValid) {
+      Serial.println("   ❌ Geçersiz token - eşleşme bulunamadı");
+      sendConfigAck(requestId, false, "Geçersiz token");
+      return;
+    }
+  } else {
+    Serial.println("   ⚠️ Token boş, ancak işleme devam ediliyor");
   }
 
   String configJson = getValue(message, "config");
@@ -417,11 +593,14 @@ void handleConfigMessage(String message) {
   newConfig.wol_profiles = getValue(configJson, "wol_profiles");
 
   if (newConfig.wol_profiles.length() > 0) {
+    Serial.println("🔄 WOL profilleri güncelleniyor (fallback parser)...");
     if (updateWOLProfilesFromJson(newConfig.wol_profiles)) {
-      Serial.println("WOL profilleri güncellendi ve kaydedildi");
+      Serial.println("✅ WOL profilleri güncellendi ve kaydedildi (" + String(wolDeviceCount) + " profil)");
     } else {
-      Serial.println("WOL profilleri güncellenemedi (parse/persist hatası)");
+      Serial.println("❌ WOL profilleri güncellenemedi (parse/persist hatası)");
     }
+  } else {
+    Serial.println("ℹ️ WOL profilleri config'de yok, mevcut profiller korunuyor");
   }
 
   applyConfig(newConfig);
@@ -463,6 +642,9 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
       ledFlash();
       // Bağlantı sonrası yetenekleri bildir
       sendCapabilities();
+      
+      // WOL profillerini de gönder (detaylı bilgi)
+      sendWOLProfiles();
       
       // Device identify mesajı gönder
       sendDeviceIdentify();
@@ -562,6 +744,12 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
       else if (msg.startsWith("getCapabilities")) { // getCapabilities [id:xxx]
         sendCapabilities();
       }
+      
+      // --- 8️⃣ WOL profillerini isteme ---
+      else if (msg.startsWith("getWOLProfiles") || msg.startsWith("{\"type\":\"request_wol_profiles\"")) {
+        Serial.println("📥 WOL profilleri isteği alındı");
+        sendWOLProfiles();
+      }
 
       // --- 5️⃣ Buzzer ---
       else if (msg.startsWith("{\"type\":\"buzzer\"")) {
@@ -607,18 +795,31 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
       }
       else if (msg.startsWith("{\"type\":\"identify_success\"")) {
         // Cihaz başarıyla tanımlandı
-        Serial.println("Cihaz başarıyla tanımlandı");
+        Serial.println("✅ Cihaz başarıyla tanımlandı");
         isPaired = true;
         
-        // Persistent token alındıysa kaydet
-        String persistentToken = getValue(msg, "persistent_token");
-        if (persistentToken.length() > 0) {
-          deviceToken = persistentToken;
-          saveToken(persistentToken);
-          Serial.println("Persistent token kaydedildi: " + persistentToken.substring(0, 8) + "...");
-        } else if (pairingToken.length() > 0) {
-          saveToken(pairingToken);
-          pairingToken = "";
+        // JSON parse et (daha güvenilir)
+        StaticJsonDocument<512> doc;
+        DeserializationError err = deserializeJson(doc, msg);
+        if (!err) {
+          String persistentToken = doc["persistent_token"].as<String>();
+          if (persistentToken.length() > 0) {
+            deviceToken = persistentToken;
+            saveToken(persistentToken);
+            Serial.println("✅ Persistent token kaydedildi: " + persistentToken.substring(0, 8) + "...");
+          }
+        } else {
+          // Fallback: basit parser
+          String persistentToken = getValue(msg, "persistent_token");
+          if (persistentToken.length() > 0) {
+            deviceToken = persistentToken;
+            saveToken(persistentToken);
+            Serial.println("✅ Persistent token kaydedildi (fallback): " + persistentToken.substring(0, 8) + "...");
+          } else if (pairingToken.length() > 0) {
+            saveToken(pairingToken);
+            Serial.println("✅ Pairing token kaydedildi: " + pairingToken.substring(0, 8) + "...");
+            pairingToken = "";
+          }
         }
       }
 
@@ -706,10 +907,13 @@ void setup() {
   // WiFi bağlandı, WebSocket bağlantısı yap
   Serial.println("\n=== WebSocket Bağlantısı Kuruluyor ===");
 
-  // Token'ı yükle
-  deviceToken = loadToken();
-  if (deviceToken.length() > 0) {
-    Serial.println("Kaydedilmiş token yüklendi: " + deviceToken.substring(0, 8) + "...");
+  // Token'ı yükle (Preferences'tan)
+  String loadedToken = loadToken();
+  if (loadedToken.length() > 0) {
+    deviceToken = loadedToken;
+    Serial.println("✅ Kaydedilmiş token yüklendi: " + deviceToken.substring(0, 8) + "...");
+  } else {
+    Serial.println("ℹ️ Kayıtlı token bulunamadı - pairing gerekecek");
   }
 
   // WebSocket bağlantısı (WSS) - konfigürasyon dosyasından host/port alınıyor

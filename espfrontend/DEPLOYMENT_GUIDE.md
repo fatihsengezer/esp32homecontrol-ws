@@ -25,6 +25,33 @@ Bu güncelleme, ESP32 cihazlarına dinamik konfigürasyon gönderme özelliği e
 
 ## Deployment Adımları
 
+### 0. ⚠️ ÖNEMLİ: Native Modül Derleme (better-sqlite3)
+
+**PROBLEM:** `better-sqlite3` native bir modül olduğu için, Windows'ta derlenmiş `node_modules` Linux/FreeBSD sunucusunda çalışmaz!
+
+**ÇÖZÜM:** `node_modules` klasörünü sunucuya yüklemeyin. Sunucuda yeniden derleyin.
+
+```bash
+# ⚠️ YAPMAYIN: node_modules'i sunucuya yüklemek
+# ❌ scp -r node_modules user@server:/path/
+
+# ✅ DOĞRU YÖNTEM:
+# 1. Sunucuda mevcut node_modules'i sil
+cd /usr/home/RiddleAbby/domains/fatihdev.xyz/public_nodejs
+rm -rf node_modules package-lock.json
+
+# 2. Package.json'ı sunucuya yükle (veya git pull)
+# (sadece kaynak kodları, node_modules DEĞİL!)
+
+# 3. Sunucuda bağımlılıkları kur (native modül burada derlenecek)
+npm install
+
+# 4. PM2'yi yeniden başlat
+pm2 restart fatihdev
+```
+
+**Not:** `.gitignore` dosyasına `node_modules/` eklendi. Artık git'e commit edilmeyecek.
+
 ### 1. Database Migration
 
 ```bash
@@ -39,12 +66,14 @@ node check_tables.js
 ### 2. Server Restart
 
 ```bash
-# Mevcut server'ı durdur
-# (Ctrl+C veya process kill)
+# PM2 ile restart
+cd /usr/home/RiddleAbby/domains/fatihdev.xyz/public_nodejs
+pm2 restart fatihdev
 
-# Yeni server'ı başlat
-cd espfrontend
+# Veya manuel
+pm2 stop fatihdev
 npm start
+pm2 start --name fatihdev npm -- start
 ```
 
 ### 3. ESP32 Firmware Update
@@ -155,17 +184,30 @@ DELETE /api/devices/:deviceId/wol-profiles/:profileId
 
 ### Yaygın Sorunlar
 
-1. **Config gönderilmiyor**
+1. **❌ Error: invalid file format (better-sqlite3)**
+   ```
+   Error: /path/to/node_modules/better-sqlite3/build/Release/better_sqlite3.node: invalid file format
+   ```
+   **Çözüm:**
+   ```bash
+   # Sunucuda node_modules'i sil ve yeniden kur
+   rm -rf node_modules package-lock.json
+   npm install
+   pm2 restart fatihdev
+   ```
+   **Neden:** Native modül yanlış platform için derlenmiş (ör. Windows'ta derlenmiş, Linux'ta çalıştırılmaya çalışılıyor)
+
+2. **Config gönderilmiyor**
    - Cihaz online mı kontrol edin
    - Token geçerli mi kontrol edin
    - Rate limit aşılmış mı kontrol edin
 
-2. **ESP32 config almıyor**
+3. **ESP32 config almıyor**
    - WebSocket bağlantısı var mı kontrol edin
    - Token doğru mu kontrol edin
    - Firmware güncel mi kontrol edin
 
-3. **Queue mesajları gönderilmiyor**
+4. **Queue mesajları gönderilmiyor**
    - Background worker çalışıyor mu kontrol edin
    - Cihaz online olduğunda mesaj gönderiliyor mu kontrol edin
 
