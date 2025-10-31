@@ -49,7 +49,14 @@
       const rememberMe = document.getElementById('rememberMe').checked;
       
       const errorDiv = document.getElementById('errorMessage');
+      const submitBtn = document.querySelector('.login-form button[type="submit"]');
+      const loginContainer = document.querySelector('.login-container');
+      
+      // Hide error and show loading
+      errorDiv.classList.remove('show');
       errorDiv.textContent = '';
+      submitBtn.disabled = true;
+      submitBtn.classList.add('loading');
       
       try {
         // API base URL'i belirle
@@ -81,19 +88,27 @@
           console.log('🍪 Cookies after login:', document.cookie);
           console.log('🔑 Session ID from response:', data.sessionId);
           
-          // Manuel cookie set etme kaldırıldı
+          // Success animation
+          loginContainer.classList.add('success');
           
           // Kısa bir bekleme ekle (cookie'nin set olması için)
-          window.location.href = '/';
+          setTimeout(() => {
+            window.location.href = '/';
+          }, 300);
         } else {
           console.log('❌ Login başarısız:', data.message);
           // Hata mesajı göster
-          errorDiv.textContent = data.message;
-          errorDiv.style.display = 'block';
+          errorDiv.textContent = data.message || 'Kullanıcı adı veya şifre hatalı!';
+          errorDiv.classList.add('show');
+          submitBtn.disabled = false;
+          submitBtn.classList.remove('loading');
         }
       } catch (error) {
-        errorDiv.textContent = 'Bağlantı hatası! Lütfen tekrar deneyin.';
-        errorDiv.style.display = 'block';
+        console.error('Login error:', error);
+        errorDiv.textContent = 'Bağlantı hatası! Lütfen internet bağlantınızı kontrol edin.';
+        errorDiv.classList.add('show');
+        submitBtn.disabled = false;
+        submitBtn.classList.remove('loading');
       }
     });
     
@@ -106,6 +121,17 @@
     function showCreateAccount() {
       alert('Hesap oluşturma özelliği henüz mevcut değil. Lütfen yönetici ile iletişime geçin.');
     }
+
+    // Input focus animations
+    document.querySelectorAll('.login-form input').forEach(input => {
+      input.addEventListener('focus', function() {
+        this.parentElement?.classList.add('focused');
+      });
+      
+      input.addEventListener('blur', function() {
+        this.parentElement?.classList.remove('focused');
+      });
+    });
   </script>
 
 </body>

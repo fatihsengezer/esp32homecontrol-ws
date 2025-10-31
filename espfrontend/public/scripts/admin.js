@@ -875,20 +875,34 @@ function initDeviceConfigs() {
 async function loadDevicesForConfig() {
     try {
         const response = await apiFetch('/api/admin/devices');
+        if (!response.ok) {
+            showToast('Cihazlar yüklenemedi: ' + response.statusText, 'error');
+            return;
+        }
         const devices = await response.json();
         
         const deviceSelector = document.getElementById('device-selector');
+        if (!deviceSelector) {
+            console.error('device-selector elementi bulunamadı');
+            return;
+        }
+        
         deviceSelector.innerHTML = '<option value="">Cihaz Seçin</option>';
         
-        devices.forEach(device => {
-            const option = document.createElement('option');
-            option.value = device.device_id;
-            option.textContent = `${device.device_name} (${device.device_id})`;
-            deviceSelector.appendChild(option);
-        });
+        if (devices.length === 0) {
+            deviceSelector.innerHTML = '<option value="">Cihaz bulunamadı</option>';
+            showToast('Henüz cihaz eklenmemiş', 'info');
+        } else {
+            devices.forEach(device => {
+                const option = document.createElement('option');
+                option.value = device.device_id;
+                option.textContent = `${device.device_name} (${device.device_id})`;
+                deviceSelector.appendChild(option);
+            });
+        }
         
-        // Cihaz seçimi değiştiğinde
-        deviceSelector.addEventListener('change', function() {
+        // Cihaz seçimi değiştiğinde (event listener sadece bir kez eklenmeli)
+        deviceSelector.onchange = function() {
             selectedDeviceId = this.value;
             if (selectedDeviceId) {
                 loadDeviceStatus();
@@ -897,11 +911,11 @@ async function loadDevicesForConfig() {
             } else {
                 clearDeviceConfigUI();
             }
-        });
+        };
         
     } catch (error) {
         console.error('Cihazlar yüklenemedi:', error);
-        showToast('Cihazlar yüklenemedi', 'error');
+        showToast('Cihazlar yüklenirken hata oluştu: ' + error.message, 'error');
     }
 }
 

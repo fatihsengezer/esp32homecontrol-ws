@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" charset="UTF-8">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@100..900&display=swap" rel="stylesheet">
@@ -12,47 +13,47 @@
 </head>
 
 <body>
-    <div id="toast-container" style="position:fixed; right:12px; bottom:12px; z-index:9999; display:flex; flex-direction:column; gap:8px; align-items:flex-end;"></div>
+    <div id="toast-container"></div>
   <div class="main-container">
     <div id="top">
       <div>
         <div>
           <h1>FatihDev</h1>
           <div id="connection-status">Bağlantı Kontrol Ediliyor...</div>
-          <button id="reconnect-btn" onclick="manualReconnect()" style="display:none; margin-left: 10px; padding: 5px 10px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">Yeniden Bağlan</button>
+          <button id="reconnect-btn" onclick="manualReconnect()" class="reconnect-btn hidden">Yeniden Bağlan</button>
         </div>
         <div>
           <span id="user-info">Yükleniyor...</span>
-          <span id="username" style="display: none;"></span>
-          <span id="userRole" style="display: none;"></span>
-          <button id="admin-btn" onclick="goToAdmin()" style="display: none;">Admin</button>
+          <span id="username" class="hidden"></span>
+          <span id="userRole" class="hidden"></span>
+          <button id="admin-btn" onclick="goToAdmin()" class="hidden">Admin</button>
           <button id="logout-btn" onclick="logout()">Çıkış</button>
         </div>
       </div>
     </div>
 
-    <div id="device-selector" style="display:none;">
+    <div id="device-selector" class="hidden">
       <label for="device-select">Cihaz Seçin:</label>
       <select id="device-select">
         <option value="">Cihaz yükleniyor...</option>
       </select>
     </div>
 
-    <div id="controlpanel" style="display:none;">
+    <div id="controlpanel" class="hidden">
       <!-- Relayler -->
-      <div id="relay_parent" style="display:none;">
+      <div id="relay_parent" class="hidden">
         <h2>Relays</h2>
         <div class="relaygroup" id="relaylist"></div>
       </div>
 
       <!-- WOL -->
-      <div id="wol_parent" style="display:none;">
+      <div id="wol_parent" class="hidden">
         <h2>Wake-on-LAN</h2>
         <ul id="wol_list"></ul>
       </div>
     </div>
 
-    <div id="log_parent" style="display:none;">
+    <div id="log_parent" class="hidden">
       <div class="log-header">
         <h3>Log</h3>
         <button onclick="clearLog()" class="clear-log-btn">Temizle</button>

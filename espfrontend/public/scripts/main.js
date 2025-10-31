@@ -53,9 +53,9 @@ function connectWebSocket() {
     // Bağlantı durumunu güncelle ve temel bölümleri aç
     updateConnectionStatus(true);
     const deviceSelector = document.getElementById('device-selector');
-    if (deviceSelector) deviceSelector.style.display = '';
+    if (deviceSelector) deviceSelector.classList.remove('hidden');
     const logParent = document.getElementById('log_parent');
-    if (logParent) logParent.style.display = '';
+    if (logParent) logParent.classList.remove('hidden');
     
     // Eğer cihaz listesi daha önce yüklendiyse ve bir seçim yapılmışsa, hemen bildir ve durum iste
     const tryKickOffForSelected = () => {
@@ -183,7 +183,11 @@ function connectWebSocket() {
     console.error("Error type:", error.type);
     console.error("Error target:", error.target);
     
-    logMessage(`WebSocket hatası: ${error.message || "Bilinmeyen hata"} (URL: ${ws.url})`, "ERROR");
+    const errorMsg = error.message || "Bilinmeyen hata";
+    logMessage(`WebSocket hatası: ${errorMsg} (URL: ${ws.url})`, "ERROR");
+    
+    // Kullanıcıya toast göster
+    showToast('WebSocket bağlantı hatası. Yeniden bağlanmaya çalışılıyor...', 'error');
     
     // Detaylı hata analizi
     if (error.type === 'error') {
@@ -217,7 +221,11 @@ function connectWebSocket() {
       }, delay);
     } else {
       logMessage("Maksimum yeniden bağlanma denemesi aşıldı. Manuel bağlantı butonunu kullanın.", "ERROR");
-      document.getElementById('reconnect-btn').style.display = 'inline-block';
+      showToast('WebSocket bağlantısı kurulamadı. Lütfen manuel olarak yeniden bağlanmayı deneyin.', 'error');
+      const reconnectBtn = document.getElementById('reconnect-btn');
+      if (reconnectBtn) {
+        reconnectBtn.classList.remove('hidden');
+      }
     }
   };
 }
@@ -229,7 +237,8 @@ function manualReconnect() {
   }
   reconnectAttempts = 0;
   connectWebSocket();
-  document.getElementById('reconnect-btn').style.display = 'none';
+  const reconnectBtn = document.getElementById('reconnect-btn');
+  if (reconnectBtn) reconnectBtn.classList.add('hidden');
 }
 
 // Sayfa yüklendiğinde kullanıcı kontrolü ve WebSocket bağlantısını başlat
@@ -353,18 +362,32 @@ document.addEventListener('DOMContentLoaded', async function() {
         console.log('❌ 401 Response JSON parse edilemedi');
       }
       
-      // Redirect kapatıldı - sadece log
-      // window.location.href = '/login';
+      // 401 hatası - login sayfasına yönlendir
+      showToast('Oturum süresi dolmuş. Giriş sayfasına yönlendiriliyorsunuz...', 'error');
+      setTimeout(() => {
+        window.location.href = '/login';
+      }, 1500);
+      return; // WebSocket bağlantısını başlatma
     } else {
       console.log('❌ Beklenmeyen response status:', response.status);
       console.log('❌ Response headers:', response.headers);
+      showToast('Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.', 'error');
     }
   } catch (error) {
     console.error('❌ Kullanıcı bilgileri alınamadı:', error);
     console.error('❌ Error details:', error.message);
     console.error('❌ Error stack:', error.stack);
-    // Redirect kapatıldı - sadece log
-    // window.location.href = '/login';
+    
+    // Network hatası veya diğer hatalar
+    if (error.message.includes('fetch') || error.message.includes('network')) {
+      showToast('Sunucuya bağlanılamıyor. Lütfen bağlantınızı kontrol edin.', 'error');
+    } else {
+      showToast('Bir hata oluştu. Giriş sayfasına yönlendiriliyorsunuz...', 'error');
+      setTimeout(() => {
+        window.location.href = '/login';
+      }, 2000);
+      return;
+    }
   }
   
   connectWebSocket();
@@ -391,32 +414,46 @@ async function loadDevices() {
       const deviceSelect = document.getElementById('device-select');
       if (deviceSelect) {
         deviceSelect.innerHTML = '<option value="">Cihaz seçin...</option>';
-        devices.forEach(device => {
-          const option = document.createElement('option');
-          option.value = device.device_id;
-          option.textContent = device.device_name;
-          deviceSelect.appendChild(option);
-        });
-        console.log('✅ Cihaz seçici güncellendi');
+        
+        if (devices.length === 0) {
+          deviceSelect.innerHTML = '<option value="">Cihaz bulunamadı</option>';
+          showToast('Henüz cihaz eklenmemiş. Admin panelinden cihaz ekleyebilirsiniz.', 'info');
+        } else {
+          devices.forEach(device => {
+            const option = document.createElement('option');
+            option.value = device.device_id;
+            option.textContent = device.device_name;
+            deviceSelect.appendChild(option);
+          });
+          console.log('✅ Cihaz seçici güncellendi');
 
-        // Eğer henüz cihaz seçili değilse ilk cihazı seç ve bildirimleri gönder
-        if (!selectedDeviceId && devices.length > 0) {
-          selectedDeviceId = devices[0].device_id;
-          deviceSelect.value = selectedDeviceId;
-          log(`Varsayılan cihaz seçildi: ${devices[0].device_name} (${selectedDeviceId})`, 'SYSTEM');
-          if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'deviceSelection', deviceId: selectedDeviceId }));
-            ws.send(`getCapabilities id:${selectedDeviceId}`);
-            ws.send(`getRelayStatus id:${selectedDeviceId}`);
-            ws.send(`getWolStatus id:${selectedDeviceId}`);
+          // Eğer henüz cihaz seçili değilse ilk cihazı seç ve bildirimleri gönder
+          if (!selectedDeviceId && devices.length > 0) {
+            selectedDeviceId = devices[0].device_id;
+            deviceSelect.value = selectedDeviceId;
+            log(`Varsayılan cihaz seçildi: ${devices[0].device_name} (${selectedDeviceId})`, 'SYSTEM');
+            if (ws && ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({ type: 'deviceSelection', deviceId: selectedDeviceId }));
+              ws.send(`getCapabilities id:${selectedDeviceId}`);
+              ws.send(`getRelayStatus id:${selectedDeviceId}`);
+              ws.send(`getWolStatus id:${selectedDeviceId}`);
+            }
           }
         }
       }
+    } else if (response.status === 401) {
+      console.log('❌ Oturum süresi dolmuş (401) - cihazlar yüklenemedi');
+      showToast('Oturum süresi dolmuş. Giriş sayfasına yönlendiriliyorsunuz...', 'error');
+      setTimeout(() => {
+        window.location.href = '/login';
+      }, 1500);
     } else {
       console.log('❌ Cihazlar yüklenemedi:', response.status);
+      showToast('Cihazlar yüklenirken bir hata oluştu.', 'error');
     }
   } catch (error) {
     console.error('❌ Cihaz yükleme hatası:', error);
+    showToast('Cihazlar yüklenirken bir hata oluştu: ' + error.message, 'error');
   }
 }
 
@@ -468,7 +505,11 @@ async function loadUserInfo() {
       // Admin butonunu göster/gizle
       const adminBtn = document.getElementById('admin-btn');
       if (adminBtn) {
-        adminBtn.style.display = user.role === 'admin' ? 'block' : 'none';
+        if (user.role === 'admin') {
+          adminBtn.classList.remove('hidden');
+        } else {
+          adminBtn.classList.add('hidden');
+        }
       }
     } else {
       showToast('Yetkilendirme gerekli. Lütfen giriş yapın.', 'error');
@@ -517,7 +558,11 @@ async function loadUserInfoAndAuth() {
       // Admin butonunu göster/gizle
       const adminBtn = document.getElementById('admin-btn');
       if (adminBtn) {
-        adminBtn.style.display = user.role === 'admin' ? 'block' : 'none';
+        if (user.role === 'admin') {
+          adminBtn.classList.remove('hidden');
+        } else {
+          adminBtn.classList.add('hidden');
+        }
       }
       
       // Auth tamamlandıktan sonra cihaz kayıtlarını iste
@@ -613,7 +658,11 @@ async function applyUserLayout() {
     sections.forEach(id => {
       const el = document.getElementById(id);
       if (!el) return;
-      el.style.display = hidden.has(id) ? 'none' : '';
+      if (hidden.has(id)) {
+        el.classList.add('hidden');
+      } else {
+        el.classList.remove('hidden');
+      }
     });
 
     // Sıralamayı uygula (varsa)
@@ -729,13 +778,19 @@ function renderDynamicControls(cap) {
   try {
     // Kontrol panelini görünür yap
     const controlpanel = document.getElementById('controlpanel');
-    if (controlpanel) controlpanel.style.display = '';
+    if (controlpanel) controlpanel.classList.remove('hidden');
 
     // Relay paneli
     const relayContainer = document.getElementById('relaylist');
     if (relayContainer && typeof cap.relayCount === 'number') {
       const relayParent = document.getElementById('relay_parent');
-      if (relayParent) relayParent.style.display = cap.relayCount > 0 ? '' : 'none';
+      if (relayParent) {
+        if (cap.relayCount > 0) {
+          relayParent.classList.remove('hidden');
+        } else {
+          relayParent.classList.add('hidden');
+        }
+      }
       relayContainer.innerHTML = '';
       for (let i = 0; i < cap.relayCount; i++) {
         const div = document.createElement('div');
@@ -762,7 +817,7 @@ function renderDynamicControls(cap) {
     const wolList = document.getElementById('wol_list');
     if (wolList && Array.isArray(cap.wol)) {
       const wolParent = document.getElementById('wol_parent');
-      if (wolParent) wolParent.style.display = '';
+      if (wolParent) wolParent.classList.remove('hidden');
       wolList.innerHTML = '';
       cap.wol.forEach(w => {
         const li = document.createElement('li');
