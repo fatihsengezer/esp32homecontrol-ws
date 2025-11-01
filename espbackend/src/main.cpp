@@ -52,6 +52,38 @@ static bool parseMac(const String &macStr, byte out[6]) {
   return true;
 }
 
+// MAC adresini string formatına çevir (AA:BB:CC:DD:EE:FF)
+String macToString(byte mac[6]) {
+  String result = "";
+  for (int i = 0; i < 6; i++) {
+    if (i > 0) result += ":";
+    if (mac[i] < 16) result += "0";
+    result += String(mac[i], HEX);
+  }
+  result.toUpperCase();
+  return result;
+}
+
+// WOL profillerini JSON array formatına çevir (Preferences'a kaydetmek için)
+String getWOLProfilesAsJSON() {
+  // Heap üzerinde ayrım yapmaya gerek yok; burada küçük bir JSON üretiliyor
+  StaticJsonDocument<1024> doc;
+  JsonArray profiles = doc.to<JsonArray>();
+  
+  for (int i = 0; i < wolDeviceCount; i++) {
+    JsonObject profile = profiles.createNestedObject();
+    profile["name"] = String(wolDevices[i].name);
+    profile["mac"] = macToString(wolDevices[i].mac);
+    profile["ip"] = wolDevices[i].ip.toString();
+    profile["broadcast_ip"] = wolDevices[i].broadcast.toString();
+    profile["port"] = wolDevices[i].port;
+  }
+  
+  String output;
+  serializeJson(profiles, output);
+  return output;
+}
+
 void loadWOLProfilesFromPrefs() {
   if (!wolPrefs.begin("wolconfig", true)) {
     Serial.println("⚠️ WOL Preferences açılamadı, compile-time profiller kullanılacak");
@@ -60,13 +92,37 @@ void loadWOLProfilesFromPrefs() {
   String json = wolPrefs.getString("profiles", "");
   wolPrefs.end();
   
+  // Eğer Preferences'ta profil yoksa ve compile-time profiller varsa, onları kaydet
+  if (json.length() == 0 && wolDeviceCount > 0) {
+    Serial.println("ℹ️ Preferences'ta WOL profili yok, compile-time profiller kaydediliyor...");
+    
+    // Write mode'a geç ve compile-time profilleri kaydet
+    if (wolPrefs.begin("wolconfig", false)) {
+      String compileTimeJson = getWOLProfilesAsJSON();
+      if (compileTimeJson.length() > 0) {
+        wolPrefs.putString("profiles", compileTimeJson);
+        wolPrefs.end();
+        Serial.println("✅ Compile-time profiller Preferences'a kaydedildi (" + String(wolDeviceCount) + " profil)");
+        
+        // Şimdi tekrar oku
+        if (wolPrefs.begin("wolconfig", true)) {
+          json = wolPrefs.getString("profiles", "");
+          wolPrefs.end();
+        }
+      } else {
+        wolPrefs.end();
+        Serial.println("ℹ️ Compile-time profiller boş, Preferences'a kaydedilmedi");
+      }
+    }
+  }
+  
   if (json.length() == 0) {
     Serial.println("ℹ️ WOL profilleri Preferences'ta yok, compile-time profiller kullanılıyor");
     return;
   }
 
   Serial.println("📥 WOL profilleri Preferences'tan yükleniyor...");
-  StaticJsonDocument<2048> doc;
+  DynamicJsonDocument doc(json.length() + 512);
   DeserializationError err = deserializeJson(doc, json);
   if (err) {
     Serial.println("❌ WOL profilleri parse edilemedi: " + String(err.c_str()));
@@ -82,9 +138,16 @@ void loadWOLProfilesFromPrefs() {
   IPAddress defaultBroadcast;
   defaultBroadcast.fromString(String(WOL_BROADCAST_IP));
   
-  // Önce tüm cihazları temizle (compile-time initialization'ı sıfırla)
+  // Compile-time profilleri koru: Hardcoded profilleri önce array'e kopyala
+  WOLDevice compileTimeDevices[MAX_WOL_DEVICES];
+  int compileTimeCount = wolDeviceCount;
+  for (int i = 0; i < compileTimeCount && i < MAX_WOL_DEVICES; i++) {
+    compileTimeDevices[i] = wolDevices[i];
+  }
+  
+  // Önce tüm cihazları temizle
   for (int i = 0; i < MAX_WOL_DEVICES; i++) {
-    strncpy(wolDevices[i].name, "", 32);  // String'i temizle
+    strncpy(wolDevices[i].name, "", 32);
     wolDevices[i].name[0] = '\0';
     memset(wolDevices[i].mac, 0, 6);
     wolDevices[i].ip = IPAddress(0, 0, 0, 0);
@@ -94,7 +157,34 @@ void loadWOLProfilesFromPrefs() {
     wolDevices[i].bootStartTime = 0;
   }
   
-  // JSON'dan yükle
+  // Önce compile-time profilleri ekle (eğer varsa ve Preferences'ta yoksa)
+  for (int i = 0; i < compileTimeCount && count < MAX_WOL_DEVICES; i++) {
+    bool foundInPreferences = false;
+    String compileTimeMac = macToString(compileTimeDevices[i].mac);
+    
+    // Preferences'taki profillerde bu MAC adresi var mı kontrol et
+    for (JsonObject p : arr) {
+      String prefMac = p["mac"].as<String>();
+      prefMac.toUpperCase();
+      prefMac.replace(" ", "");
+      compileTimeMac.toUpperCase();
+      compileTimeMac.replace(" ", "");
+      
+      if (prefMac == compileTimeMac) {
+        foundInPreferences = true;
+        break;
+      }
+    }
+    
+    // Preferences'ta yoksa compile-time profilini ekle
+    if (!foundInPreferences) {
+      wolDevices[count] = compileTimeDevices[i];
+      Serial.println("✅ Compile-time WOL profili korundu: " + String(wolDevices[count].name));
+      count++;
+    }
+  }
+  
+  // Şimdi Preferences'tan yükle
   for (JsonObject p : arr) {
     if (count >= MAX_WOL_DEVICES) {
       Serial.println("⚠️ MAX_WOL_DEVICES limitine ulaşıldı, fazla profiller yüklenmedi");
@@ -120,6 +210,28 @@ void loadWOLProfilesFromPrefs() {
     
     IPAddress ip;
     ip.fromString(ipStr);
+    
+    // Eğer Preferences'taki IP 0.0.0.0 ise ve aynı MAC'e sahip hardcoded profil varsa, hardcoded IP'yi kullan
+    IPAddress zeroIP(0, 0, 0, 0);
+    if ((uint32_t)ip == (uint32_t)zeroIP) {
+      // Hardcoded profillerde aynı MAC adresine sahip profil var mı kontrol et
+      for (int i = 0; i < compileTimeCount; i++) {
+        bool macMatch = true;
+        for (int j = 0; j < 6; j++) {
+          if (compileTimeDevices[i].mac[j] != macb[j]) {
+            macMatch = false;
+            break;
+          }
+        }
+        if (macMatch && (uint32_t)compileTimeDevices[i].ip != (uint32_t)zeroIP) {
+          // Hardcoded profil IP'sini kullan
+          ip = compileTimeDevices[i].ip;
+          Serial.println("✅ " + name + " için hardcoded IP adresi kullanılıyor: " + ip.toString());
+          break;
+        }
+      }
+    }
+    
     wolDevices[count].ip = ip;
     
     IPAddress bc;
@@ -143,10 +255,13 @@ void loadWOLProfilesFromPrefs() {
 }
 
 bool saveWOLProfilesToPrefs(const String &json) {
-  StaticJsonDocument<2048> doc;
+  DynamicJsonDocument doc(json.length() + 512);
   if (deserializeJson(doc, json)) return false;
   if (!doc.is<JsonArray>()) return false;
-  if (!wolPrefs.begin("wolconfig", false)) return false;
+  if (!wolPrefs.begin("wolconfig", false)) {
+    // Namespace yoksa yaratmayı dene
+    if (!wolPrefs.begin("wolconfig", false)) return false;
+  }
   wolPrefs.putString("profiles", json);
   wolPrefs.end();
   return true;
@@ -171,18 +286,6 @@ bool hasIdButNotForThisDevice(const String &msg) {
   return targetId.length() > 0 && targetId != String(DEVICE_ID);
 }
 
-// MAC adresini string formatına çevir (AA:BB:CC:DD:EE:FF)
-String macToString(byte mac[6]) {
-  String result = "";
-  for (int i = 0; i < 6; i++) {
-    if (i > 0) result += ":";
-    if (mac[i] < 16) result += "0";
-    result += String(mac[i], HEX);
-  }
-  result.toUpperCase();
-  return result;
-}
-
 // ----------------- Cihaz yeteneklerini gönder -----------------
 void sendCapabilities() {
   // JSON: { type:"capabilities", deviceId, relayCount, wol:[{index,name},...] }
@@ -204,7 +307,10 @@ void sendCapabilities() {
 // ----------------- WOL profillerini detaylı gönder -----------------
 void sendWOLProfiles() {
   // JSON: { type:"wol_profiles", deviceId, profiles:[{name,mac,ip,broadcast,port},...] }
-  StaticJsonDocument<4096> doc;
+  // Stack taşmasını önlemek için heap üzerinde dinamik ayır
+  size_t approxPerProfile = 128;
+  size_t capacity = 512 + (wolDeviceCount * approxPerProfile);
+  DynamicJsonDocument doc(capacity);
   doc["type"] = "wol_profiles";
   doc["deviceId"] = String(DEVICE_ID);
   JsonArray profiles = doc.createNestedArray("profiles");
@@ -306,6 +412,7 @@ void checkDevices() {
   static unsigned long lastOfflinePing = 0;
 
   unsigned long now = millis();
+  IPAddress zeroIP(0, 0, 0, 0);
 
   // 1️⃣ BOOTING cihazlar: hızlı ping (500 ms)
   if (now - lastFastPing >= 500) {
@@ -313,20 +420,43 @@ void checkDevices() {
     for (int i = 0; i < wolDeviceCount; i++) {
       WOLDevice &dev = wolDevices[i];
       if (dev.status == WOLDevice::BOOTING) {
+        // IP adresi geçerli değilse OFFLINE yap
+        if ((uint32_t)dev.ip == (uint32_t)zeroIP) {
+          dev.status = WOLDevice::OFFLINE;
+          sendStatus(dev);
+          continue;
+        }
+        
+        // Timeout kontrolü (5 dakika)
+        if (dev.bootStartTime > 0 && (now - dev.bootStartTime) > 300000) {
+          // 5 dakikadan fazla BOOTING durumundaysa FAILED yap
+          dev.status = WOLDevice::FAILED;
+          sendStatus(dev);
+          continue;
+        }
+        
+        // Ping kontrolü
         if (Ping.ping(dev.ip, 1)) {
           dev.status = WOLDevice::RUNNING;
+          dev.bootStartTime = 0; // Reset
           sendStatus(dev);
         }
       }
     }
   }
 
-  // 2️⃣ RUNNING cihazlar: hafif ping (5 s)
-  if (now - lastSlowPing >= 5000) {
+  // 2️⃣ RUNNING cihazlar: hafif ping (15 s - daha az yük)
+  if (now - lastSlowPing >= 15000) {
     lastSlowPing = now;
     for (int i = 0; i < wolDeviceCount; i++) {
       WOLDevice &dev = wolDevices[i];
       if (dev.status == WOLDevice::RUNNING) {
+        // IP adresi geçerli değilse OFFLINE yap
+        if ((uint32_t)dev.ip == (uint32_t)zeroIP) {
+          dev.status = WOLDevice::OFFLINE;
+          sendStatus(dev);
+          continue;
+        }
         if (!Ping.ping(dev.ip, 1)) {
           dev.status = WOLDevice::OFFLINE;
           sendStatus(dev);
@@ -341,6 +471,8 @@ void checkDevices() {
     for (int i = 0; i < wolDeviceCount; i++) {
       WOLDevice &dev = wolDevices[i];
       if (dev.status == WOLDevice::OFFLINE) {
+        // IP adresi geçerli değilse skip (zaten OFFLINE)
+        if ((uint32_t)dev.ip == (uint32_t)zeroIP) continue;
         if (Ping.ping(dev.ip, 1)) {
           dev.status = WOLDevice::RUNNING;
           sendStatus(dev);
@@ -463,8 +595,8 @@ void sendConfigAck(String requestId, bool success, String errorMsg = "") {
 void handleConfigMessage(String message) {
   Serial.println("Config mesajı alındı: " + message);
 
-  // Önce ArduinoJson ile sağlam parse dene
-  StaticJsonDocument<4096> doc;
+  // Önce ArduinoJson ile sağlam parse dene (heap'te ayrım - stack overflow önlemek için)
+  DynamicJsonDocument doc(message.length() + 1024);
   DeserializationError err = deserializeJson(doc, message);
   if (!err) {
     String requestId = doc["meta"]["request_id"].as<String>();
@@ -724,18 +856,79 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
 
       // --- 4️⃣ StatusCheck ---
       else if (msg.startsWith("getWolStatus")) { // getWolStatus [id:xxx]
+        Serial.println("🔍 WOL Status Check başlatılıyor (" + String(wolDeviceCount) + " cihaz)");
         for (int i = 0; i < wolDeviceCount; i++) {
           WOLDevice &dev = wolDevices[i];
+          
+          // Cihaz adı boşsa atla (geçersiz profil)
+          if (dev.name[0] == '\0') {
+            Serial.println("⚠️ Cihaz " + String(i) + " geçersiz (ad yok), atlanıyor");
+            continue;
+          }
+          
+          Serial.println("🔍 Status kontrol ediliyor: " + String(dev.name));
+          
           if (dev.status == WOLDevice::BOOTING) {
             sendStatus(dev);
             continue;
           }
 
+          // IP adresi 0.0.0.0 ise ping atma, direkt OFFLINE olarak işaretle
+          IPAddress zeroIP(0, 0, 0, 0);
+          if ((uint32_t)dev.ip == (uint32_t)zeroIP) {
+            // IP adresi tanımlı değil, OFFLINE olarak işaretle
+            if (dev.status != WOLDevice::OFFLINE) {
+              dev.status = WOLDevice::OFFLINE;
+              Serial.println("📴 " + String(dev.name) + " -> OFFLINE (IP yok)");
+              sendStatus(dev);
+            }
+            continue;
+          }
+
+          // Geçerli IP adresi varsa ping kontrolü yap
+          Serial.println("🏓 " + String(dev.name) + " ping atılıyor: " + dev.ip.toString());
+          
+          // Timeout ile ping kontrolü - ESP32Ping'in ping() fonksiyonu blocking olabilir
+          // Manuel timeout kontrolü ekleyerek takılmaları önliyoruz
+          unsigned long pingStart = millis();
           bool reachable = Ping.ping(dev.ip, 1);
-          if (reachable && dev.status != WOLDevice::RUNNING) dev.status = WOLDevice::RUNNING;
-          else if (!reachable && dev.status != WOLDevice::BOOTING) dev.status = WOLDevice::OFFLINE;
-          sendStatus(dev);
+          unsigned long pingDuration = millis() - pingStart;
+          
+          // Eğer ping 3 saniyeden uzun sürdüyse, timeout olarak kabul et
+          // Bu, Main gibi yanıt vermeyen cihazlar için önemli
+          bool isTimeout = false;
+          if (pingDuration > 3000) {
+            Serial.println("⏱️ " + String(dev.name) + " ping timeout (" + String(pingDuration) + "ms)");
+            reachable = false;
+            isTimeout = true;
+          }
+          
+          if (reachable) {
+            // Ping başarılı - RUNNING durumuna geç
+            bool statusChanged = (dev.status != WOLDevice::RUNNING);
+            dev.status = WOLDevice::RUNNING;
+            
+            if (statusChanged) {
+              Serial.println("✅ " + String(dev.name) + " -> RUNNING (durum değişti)");
+            } else {
+              Serial.println("✅ " + String(dev.name) + " -> RUNNING (zaten açık, status gönderiliyor)");
+            }
+            // Her durumda status gönder (frontend'in güncel durumu görmesi için)
+            sendStatus(dev);
+          } else {
+            // Ping başarısız - BOOTING değilse OFFLINE yap, timeout ise mutlaka status gönder
+            if (dev.status != WOLDevice::BOOTING) {
+              dev.status = WOLDevice::OFFLINE;
+              Serial.println("❌ " + String(dev.name) + " -> OFFLINE (ping başarısız, " + String(pingDuration) + "ms)");
+              sendStatus(dev);
+            } else if (isTimeout) {
+              // Timeout durumunda BOOTING olsa bile status gönder (Main gibi cihazlar için)
+              Serial.println("⏱️ " + String(dev.name) + " -> BOOTING (timeout, " + String(pingDuration) + "ms)");
+              sendStatus(dev);
+            }
+          }
         }
+        Serial.println("✅ WOL Status Check tamamlandı");
         webSocket.sendTXT("statusCheck:done");
         ledFlash();
       }
@@ -746,7 +939,7 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
       }
       
       // --- 8️⃣ WOL profillerini isteme ---
-      else if (msg.startsWith("getWOLProfiles") || msg.startsWith("{\"type\":\"request_wol_profiles\"")) {
+      else if (msg.startsWith("getWOLProfiles") || msg.startsWith("{\"type\":\"request_wol_profiles\"") || msg.startsWith("{\"type\":\"pull_wol_profiles\"")) {
         Serial.println("📥 WOL profilleri isteği alındı");
         sendWOLProfiles();
       }

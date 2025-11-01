@@ -191,8 +191,11 @@ const char wifiSetupHTML[] PROGMEM = R"(
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ESP32 WiFi Ayarları</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
-*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);display:flex;justify-content:center;align-items:center;min-height:100vh;padding:20px}.container{background:white;padding:30px;border-radius:20px;box-shadow:0 10px 40px rgba(0,0,0,0.2);max-width:450px;width:100%}.header{text-align:center;margin-bottom:30px}.header h1{color:#333;font-size:28px;margin-bottom:8px}.subtitle{color:#666;font-size:14px}.content{margin-bottom:20px}.button-group{margin-bottom:20px;text-align:center}.btn{padding:12px 24px;border:none;border-radius:8px;font-size:16px;font-weight:600;cursor:pointer;transition:all 0.3s ease;display:inline-flex;align-items:center;gap:8px;width:100%;justify-content:center}.btn:disabled{opacity:0.5;cursor:not-allowed}.btn-primary{background:#667eea;color:white}.btn-primary:hover:not(:disabled){background:#5568d3;transform:translateY(-2px);box-shadow:0 4px 12px rgba(102,126,234,0.4)}.btn-success{background:#48bb78;color:white}.btn-success:hover:not(:disabled){background:#38a169;transform:translateY(-2px);box-shadow:0 4px 12px rgba(72,187,120,0.4)}.icon{font-size:20px}.form-group{margin-bottom:20px}.form-group label{display:block;margin-bottom:8px;color:#333;font-weight:600;font-size:14px}.input-text,.input-select{width:100%;padding:12px;border:2px solid #e2e8f0;border-radius:8px;font-size:15px;transition:border-color 0.3s ease}.input-text:focus,.input-select:focus{outline:none;border-color:#667eea}.input-select{cursor:pointer}.status-message{margin-top:20px;padding:12px;border-radius:8px;font-size:14px;text-align:center;min-height:20px;transition:all 0.3s ease}.status-message.success{background:#c6f6d5;color:#22543d;border:1px solid #48bb78}.status-message.error{background:#fed7d7;color:#742a2a;border:1px solid #f56565}.status-message.info{background:#bee3f8;color:#2c5282;border:1px solid #4299e1}.footer{margin-top:30px;padding-top:20px;border-top:1px solid #e2e8f0;text-align:center}.footer .info{color:#666;font-size:12px;line-height:1.5}.loading{display:inline-block;width:16px;height:16px;border:3px solid rgba(255,255,255,0.3);border-radius:50%;border-top-color:#fff;animation:spin 0.8s linear infinite;margin-right:8px}@keyframes spin{to{transform:rotate(360deg)}}
+:root{--primary-bg:#1a1a1a;--secondary-bg:#2e2e2e;--tertiary-bg:#3b3b3b;--card-bg:rgba(46,46,46,0.85);--border-color:rgba(215,215,215,0.1);--text-primary:#e0e0e0;--text-secondary:#a9a9a9;--accent-primary:#d79333;--success:#28a745;--danger:#dc3545;--warning:#ffc107;--shadow-sm:0 2px 8px rgba(0,0,0,0.2);--shadow-md:0 4px 16px rgba(0,0,0,0.3);--shadow-lg:0 8px 32px rgba(0,0,0,0.4)}*{margin:0;padding:0;box-sizing:border-box}body{font-family:"Lexend Deca",-apple-system,BlinkMacSystemFont,'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#1a1a1a 0%,#2d2d2d 100%);background-attachment:fixed;color:var(--text-primary);display:flex;justify-content:center;align-items:center;min-height:100vh;padding:20px}.container{background:var(--card-bg);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);padding:2.5rem;border-radius:1.5rem;box-shadow:var(--shadow-lg);border:1px solid var(--border-color);max-width:480px;width:100%;animation:fadeInUp 0.5s ease-out}@keyframes fadeInUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}.header{text-align:center;margin-bottom:2rem}.header h1{color:var(--text-primary);font-size:2rem;font-weight:700;margin-bottom:0.5rem;background:linear-gradient(135deg,#d79333 0%,#f5c876 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;text-shadow:0 2px 10px rgba(215,147,51,0.3);letter-spacing:-0.5px}.subtitle{color:var(--text-secondary);font-size:0.95rem;font-weight:400}.content{margin-bottom:1.5rem}.button-group{margin-bottom:1.5rem;text-align:center}.btn{padding:0.9rem 1.8rem;border:none;border-radius:10rem;font-size:1rem;font-weight:600;cursor:pointer;transition:all 0.3s cubic-bezier(0.4,0,0.2,1);display:inline-flex;align-items:center;justify-content:center;gap:0.5rem;width:100%;color:white;font-family:"Lexend Deca",sans-serif;position:relative;overflow:hidden;box-shadow:var(--shadow-sm);border:1.5px solid transparent}.btn::before{content:'';position:absolute;top:50%;left:50%;width:0;height:0;border-radius:50%;background:rgba(255,255,255,0.1);transform:translate(-50%,-50%);transition:width 0.6s,height 0.6s}.btn:active::before{width:300px;height:300px}.btn:disabled{opacity:0.5;cursor:not-allowed;transform:none!important}.btn-primary{background:linear-gradient(135deg,#2e2e2e 0%,#3b3b3b 100%);border-color:rgba(215,215,215,0.2)}.btn-primary:hover:not(:disabled){background:linear-gradient(135deg,#3b3b3b 0%,#484848 100%);transform:translateY(-2px);box-shadow:var(--shadow-md);border-color:rgba(215,215,215,0.4)}.btn-success{background:linear-gradient(135deg,#28a745 0%,#218838 100%);border-color:rgba(40,167,69,0.5)}.btn-success:hover:not(:disabled){background:linear-gradient(135deg,#218838 0%,#1e7e34 100%);transform:translateY(-2px);box-shadow:var(--shadow-md);border-color:rgba(40,167,69,0.7)}.icon{font-size:1.2rem}.form-group{margin-bottom:1.5rem}.form-group label{display:block;margin-bottom:0.5rem;color:var(--text-primary);font-weight:600;font-size:0.95rem}.input-text,.input-select{width:100%;padding:0.9rem 1rem;background:rgba(30,30,30,0.6);border:1.5px solid var(--border-color);border-radius:0.75rem;font-size:1rem;color:var(--text-primary);transition:all 0.3s ease;font-family:"Lexend Deca",sans-serif}.input-text:focus,.input-select:focus{outline:none;border-color:var(--accent-primary);background:rgba(30,30,30,0.8);box-shadow:0 0 0 3px rgba(215,147,51,0.1)}.input-text::placeholder{color:var(--text-secondary)}.input-select{cursor:pointer}.input-select option{background:var(--secondary-bg);color:var(--text-primary);padding:0.75rem}.status-message{margin-top:1.5rem;padding:1rem;border-radius:0.75rem;font-size:0.9rem;text-align:center;min-height:1.5rem;transition:all 0.3s ease;font-weight:500;border:1.5px solid transparent;animation:slideIn 0.3s ease-out}@keyframes slideIn{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}.status-message.success{background:rgba(40,167,69,0.15);color:#4ade80;border-color:rgba(40,167,69,0.3)}.status-message.error{background:rgba(220,53,69,0.15);color:#f87171;border-color:rgba(220,53,69,0.3)}.status-message.info{background:rgba(215,147,51,0.15);color:#fbbf24;border-color:rgba(215,147,51,0.3)}.footer{margin-top:2rem;padding-top:1.5rem;border-top:1px solid var(--border-color);text-align:center}.footer .info{color:var(--text-secondary);font-size:0.85rem;line-height:1.6}.loading{display:inline-block;width:18px;height:18px;border:3px solid rgba(255,255,255,0.3);border-radius:50%;border-top-color:#fff;animation:spin 0.8s linear infinite;margin-right:0.5rem}@keyframes spin{to{transform:rotate(360deg)}}@media (max-width:480px){.container{padding:1.5rem;border-radius:1rem}.header h1{font-size:1.5rem}.subtitle{font-size:0.85rem}.btn{padding:0.75rem 1.5rem;font-size:0.95rem}}
   </style>
 </head>
 <body>
@@ -218,7 +221,7 @@ const char wifiSetupHTML[] PROGMEM = R"(
 
       <div class="form-group">
         <label for="password">Şifre:</label>
-        <input type="password" id="password" class="input-text" placeholder="WiFi şifresini girin">
+        <input type="password" id="password" class="input-text" placeholder="WiFi şifresini girin" autocomplete="off">
       </div>
 
       <button id="save" class="btn btn-success" disabled>
@@ -234,125 +237,7 @@ const char wifiSetupHTML[] PROGMEM = R"(
   </div>
   
   <script>
-document.addEventListener('DOMContentLoaded', function() {
-  const scanBtn = document.getElementById('scan');
-  const saveBtn = document.getElementById('save');
-  const ssidSelect = document.getElementById('ssid');
-  const passwordInput = document.getElementById('password');
-  const statusMsg = document.getElementById('status');
-
-  let networks = [];
-
-  function showStatus(message, type = 'info') {
-    statusMsg.textContent = message;
-    statusMsg.className = 'status-message ' + type;
-  }
-
-  function checkSaveButton() {
-    const hasSelection = ssidSelect.value.length > 0;
-    const hasPassword = passwordInput.value.length > 0;
-    saveBtn.disabled = !(hasSelection && hasPassword);
-  }
-
-  ssidSelect.addEventListener('change', checkSaveButton);
-  passwordInput.addEventListener('input', checkSaveButton);
-
-  scanBtn.addEventListener('click', async function() {
-    try {
-      scanBtn.disabled = true;
-      showStatus('🔍 WiFi ağları taranıyor...', 'info');
-      
-      const response = await fetch('/scan');
-      
-      if (!response.ok) {
-        throw new Error('Tarama başarısız');
-      }
-      
-      const data = await response.json();
-      networks = data;
-      
-      ssidSelect.innerHTML = '<option value="">Ağ seçin...</option>';
-      
-      networks.forEach(network => {
-        const option = document.createElement('option');
-        option.value = network.ssid;
-        option.textContent = `${network.ssid} ${network.rssi > -70 ? '📶' : network.rssi > -80 ? '📵' : ''} (${network.rssi} dBm)`;
-        ssidSelect.appendChild(option);
-      });
-      
-      showStatus(`✅ ${networks.length} ağ bulundu`, 'success');
-      
-    } catch (error) {
-      console.error('Tarama hatası:', error);
-      showStatus('❌ Tarama başarısız. Lütfen tekrar deneyin.', 'error');
-    } finally {
-      scanBtn.disabled = false;
-    }
-  });
-
-  saveBtn.addEventListener('click', async function() {
-    try {
-      const ssid = ssidSelect.value;
-      const password = passwordInput.value;
-      
-      if (!ssid || !password) {
-        showStatus('⚠️ Lütfen SSID ve şifre girin', 'error');
-        return;
-      }
-      
-      saveBtn.disabled = true;
-      saveBtn.innerHTML = '<span class="loading"></span> Kaydediliyor...';
-      showStatus('💾 WiFi bilgileri kaydediliyor...', 'info');
-      
-      const formData = new URLSearchParams();
-      formData.append('ssid', ssid);
-      formData.append('password', password);
-      
-      const response = await fetch('/save', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: formData.toString()
-      });
-      
-      const result = await response.text();
-      
-      if (response.ok) {
-        showStatus('✅ Kaydedildi! Cihaz yeniden başlatılıyor...', 'success');
-        
-        setTimeout(() => {
-          showStatus('🔄 WiFi\'ye bağlanılıyor, lütfen bekleyin...', 'info');
-        }, 3000);
-      } else {
-        showStatus('❌ Kayıt başarısız: ' + result, 'error');
-        saveBtn.disabled = false;
-        saveBtn.innerHTML = '<span class="icon">💾</span> Kaydet ve Bağlan';
-      }
-      
-    } catch (error) {
-      console.error('Kayıt hatası:', error);
-      showStatus('❌ Kayıt başarısız. Lütfen tekrar deneyin.', 'error');
-      saveBtn.disabled = false;
-      saveBtn.innerHTML = '<span class="icon">💾</span> Kaydet ve Bağlan';
-    }
-  });
-
-  async function checkSavedWiFi() {
-    try {
-      const response = await fetch('/check');
-      const data = await response.json();
-      
-      if (data.saved) {
-        showStatus(`ℹ️ Kayıtlı WiFi: ${data.ssid}`, 'info');
-      }
-    } catch (error) {
-      console.error('Check hatası:', error);
-    }
-  }
-
-  checkSavedWiFi();
-});
+document.addEventListener('DOMContentLoaded',function(){const scanBtn=document.getElementById('scan');const saveBtn=document.getElementById('save');const ssidSelect=document.getElementById('ssid');const passwordInput=document.getElementById('password');const statusMsg=document.getElementById('status');let networks=[];function showStatus(message,type='info'){statusMsg.textContent=message;statusMsg.className='status-message '+type}function checkSaveButton(){const hasSelection=ssidSelect.value.length>0;const hasPassword=passwordInput.value.length>0;saveBtn.disabled=!(hasSelection&&hasPassword)}ssidSelect.addEventListener('change',checkSaveButton);passwordInput.addEventListener('input',checkSaveButton);scanBtn.addEventListener('click',async function(){try{scanBtn.disabled=true;scanBtn.innerHTML='<span class="loading"></span> Taranıyor...';showStatus('🔍 WiFi ağları taranıyor...','info');const response=await fetch('/scan');if(!response.ok){throw new Error('Tarama başarısız')}const data=await response.json();networks=data;ssidSelect.innerHTML='<option value="">Ağ seçin...</option>';networks.forEach(network=>{const option=document.createElement('option');option.value=network.ssid;const signalStrength=network.rssi>-70?'📶':network.rssi>-80?'📵':'📡';option.textContent=`${network.ssid} ${signalStrength} (${network.rssi} dBm)`;ssidSelect.appendChild(option)});showStatus(`✅ ${networks.length} ağ bulundu`,'success')}catch(error){console.error('Tarama hatası:',error);showStatus('❌ Tarama başarısız. Lütfen tekrar deneyin.','error')}finally{scanBtn.disabled=false;scanBtn.innerHTML='<span class="icon">📡</span> Ağları Tara'}});saveBtn.addEventListener('click',async function(){try{const ssid=ssidSelect.value;const password=passwordInput.value;if(!ssid||!password){showStatus('⚠️ Lütfen SSID ve şifre girin','error');return}saveBtn.disabled=true;saveBtn.innerHTML='<span class="loading"></span> Kaydediliyor...';showStatus('💾 WiFi bilgileri kaydediliyor...','info');const formData=new URLSearchParams();formData.append('ssid',ssid);formData.append('password',password);const response=await fetch('/save',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:formData.toString()});const result=await response.text();if(response.ok){showStatus('✅ WiFi bilgileri kaydedildi! Cihaz yeniden başlatılıyor...','success');setTimeout(()=>{showStatus('✅ İşlem tamamlandı! Cihaz WiFi\'ye bağlanmaya çalışıyor. Bu sayfayı kapatabilirsiniz.','success')},2000)}else{showStatus('❌ Kayıt başarısız: '+result,'error');saveBtn.disabled=false;saveBtn.innerHTML='<span class="icon">💾</span> Kaydet ve Bağlan'}}catch(error){console.log('Bağlantı kesildi (cihaz yeniden başlatılıyor):',error);showStatus('✅ İşlem tamamlandı! WiFi bilgileri kaydedildi. Cihaz yeniden başlatılıyor ve WiFi\'ye bağlanmaya çalışıyor. Bu sayfayı kapatabilirsiniz.','success')}});async function checkSavedWiFi(){try{const response=await fetch('/check');const data=await response.json();if(data.saved){showStatus(`ℹ️ Kayıtlı WiFi: ${data.ssid}`,'info')}}catch(error){console.error('Check hatası:',error)}}checkSavedWiFi()});
   </script>
 </body>
 </html>

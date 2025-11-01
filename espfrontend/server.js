@@ -584,11 +584,10 @@ app.post('/api/devices/:deviceId/config', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Geçersiz konfigürasyon verisi' });
     }
     
-    // Payload oluştur
+    // Payload oluştur (token'ı eklemeyin - sendConfigToDevice aktif token'ı otomatik ekler)
     const payload = {
       type: 'update_config',
       device_id: deviceId,
-      token: generateShortLivedToken(),
       config: config,
       meta: {
         request_id: crypto.randomUUID(),
@@ -661,7 +660,7 @@ app.get('/api/devices/:deviceId/wol-profiles', requireAuth, async (req, res) => 
 app.post('/api/devices/:deviceId/wol-profiles', requireAuth, async (req, res) => {
   try {
     const { deviceId } = req.params;
-    const { name, mac, broadcast_ip, port } = req.body;
+    const { name, mac, broadcast_ip, port, ip_address } = req.body;
     const userId = req.userId;
     
     // Yetki kontrolü
@@ -675,7 +674,44 @@ app.post('/api/devices/:deviceId/wol-profiles', requireAuth, async (req, res) =>
       return res.status(400).json({ error: 'Name, MAC ve broadcast IP gerekli' });
     }
     
-    const profile = await wolProfilesDB.addProfile(deviceId, name, mac, broadcast_ip, port || 9);
+    // IP adresi validasyonu (opsiyonel - varsa kontrol et)
+    if (ip_address && ip_address !== '0.0.0.0') {
+      const ipPattern = /^(\d{1,3}\.){3}\d{1,3}$/;
+      if (!ipPattern.test(ip_address)) {
+        return res.status(400).json({ error: 'Geçersiz IP adresi formatı' });
+      }
+    }
+    
+    const profile = await wolProfilesDB.addProfile(deviceId, name, mac, broadcast_ip, port || 9, ip_address || '0.0.0.0');
+    // Ekleme sonrası cihaza senkronize et
+    setTimeout(async () => {
+      try {
+        const allProfiles = await wolProfilesDB.getProfilesByDevice(deviceId);
+        const syncProfiles = allProfiles.map(p => ({
+          name: p.name,
+          mac: p.mac,
+          broadcast_ip: p.broadcast_ip,
+          port: p.port || 9,
+          ip: p.ip_address || '0.0.0.0'
+        }));
+
+        await sendConfigToDevice(deviceId, {
+          type: 'update_config',
+          device_id: deviceId,
+          // token otomatik olarak sendConfigToDevice içinde eklenecek
+          config: { wol_profiles: syncProfiles },
+          meta: {
+            request_id: crypto.randomUUID(),
+            timestamp: new Date().toISOString()
+          }
+        }, userId);
+
+        console.log(`📤 WOL profilleri cihaza gönderildi (ekleme): ${deviceId}`);
+      } catch (err) {
+        console.error('❌ WOL profilleri senkronizasyon hatası (ekleme):', err);
+      }
+    }, 300);
+
     res.json({ success: true, profile });
     
   } catch (error) {
@@ -687,7 +723,7 @@ app.post('/api/devices/:deviceId/wol-profiles', requireAuth, async (req, res) =>
 app.put('/api/devices/:deviceId/wol-profiles/:profileId', requireAuth, async (req, res) => {
   try {
     const { deviceId, profileId } = req.params;
-    const { name, mac, broadcast_ip, port } = req.body;
+    const { name, mac, broadcast_ip, port, ip_address } = req.body;
     const userId = req.userId;
     
     console.log(`📝 WOL profili güncelleme isteği: deviceId=${deviceId}, profileId=${profileId}`);
@@ -734,6 +770,16 @@ app.put('/api/devices/:deviceId/wol-profiles/:profileId', requireAuth, async (re
       }
       updateData.port = portNum;
     }
+    if (ip_address !== undefined) {
+      // IP adresi opsiyonel, 0.0.0.0 ise geçerli (ping atılmayacak)
+      if (ip_address && ip_address !== '0.0.0.0') {
+        const ipPattern = /^(\d{1,3}\.){3}\d{1,3}$/;
+        if (!ipPattern.test(ip_address)) {
+          return res.status(400).json({ error: 'Geçersiz IP adresi formatı' });
+        }
+      }
+      updateData.ip_address = ip_address || '0.0.0.0';
+    }
     
     if (Object.keys(updateData).length === 0) {
       return res.status(400).json({ error: 'Güncellenecek alan belirtilmedi' });
@@ -751,7 +797,7 @@ app.put('/api/devices/:deviceId/wol-profiles/:profileId', requireAuth, async (re
           mac: p.mac,
           broadcast_ip: p.broadcast_ip,
           port: p.port || 9,
-          ip: '0.0.0.0'
+          ip: p.ip_address || '0.0.0.0'
         }));
         
         await sendConfigToDevice(deviceId, {
@@ -804,7 +850,7 @@ app.delete('/api/devices/:deviceId/wol-profiles/:profileId', requireAuth, async 
           mac: p.mac,
           broadcast_ip: p.broadcast_ip,
           port: p.port || 9,
-          ip: '0.0.0.0'
+          ip: p.ip_address || '0.0.0.0'
         }));
         
         await sendConfigToDevice(deviceId, {
@@ -829,6 +875,70 @@ app.delete('/api/devices/:deviceId/wol-profiles/:profileId', requireAuth, async 
   } catch (error) {
     console.error('❌ WOL profili silme hatası:', error);
     res.status(500).json({ error: 'WOL profili silinemedi: ' + error.message });
+  }
+});
+
+// ESP32'den WOL profillerini çek (pull)
+app.post('/api/devices/:deviceId/wol-profiles/pull', requireAuth, async (req, res) => {
+  try {
+    const { deviceId } = req.params;
+    const userId = req.userId;
+    
+    console.log(`📥 WOL profilleri çekme isteği (pull): deviceId=${deviceId}`);
+    
+    // Yetki kontrolü
+    const ownership = await checkDeviceOwnership(deviceId, userId);
+    if (!ownership.allowed) {
+      return res.status(403).json({ error: ownership.reason || 'Yetki yok' });
+    }
+    
+    // ESP32'ye pull_wol_profiles mesajı gönder
+    const session = wsSessions.get(deviceId);
+    if (!session || !session.ws || session.ws.readyState !== WebSocket.OPEN) {
+      return res.status(503).json({ 
+        error: 'Cihaz çevrimdışı', 
+        online: false 
+      });
+    }
+    
+    // Token'ı al
+    let token = null;
+    try {
+      const tokenData = await deviceTokensDB.getActiveToken(deviceId);
+      if (tokenData && tokenData.token) {
+        token = tokenData.token;
+      } else {
+        token = generateShortLivedToken();
+      }
+    } catch (tokenError) {
+      token = generateShortLivedToken();
+    }
+    
+    // Pull mesajını gönder
+    const pullMessage = {
+      type: 'pull_wol_profiles',
+      device_id: deviceId,
+      token: token,
+      meta: {
+        request_id: crypto.randomUUID(),
+        timestamp: new Date().toISOString()
+      }
+    };
+    
+    session.ws.send(JSON.stringify(pullMessage));
+    console.log(`📤 Pull WOL profilleri mesajı gönderildi: ${deviceId}`);
+    
+    // Mesaj gönderildi, ESP32'den wol_profiles mesajı gelince handleWOLProfilesFromDevice çağrılacak
+    // Bu endpoint hemen response döndürüyor (async işlem)
+    res.json({ 
+      success: true, 
+      message: 'WOL profilleri isteği cihaza gönderildi',
+      request_id: pullMessage.meta.request_id
+    });
+    
+  } catch (error) {
+    console.error('❌ WOL profilleri çekme hatası:', error);
+    res.status(500).json({ error: 'WOL profilleri çekilemedi: ' + error.message });
   }
 });
 
@@ -1046,17 +1156,20 @@ async function handleWOLProfilesFromDevice(ws, data) {
       
       if (existingProfile) {
         // Profil var - güncelle (sadece farklıysa)
+        const espIp = ip || '0.0.0.0';
         const needsUpdate = 
           existingProfile.name !== name ||
           existingProfile.broadcast_ip !== (broadcast_ip || '192.168.1.255') ||
-          existingProfile.port !== (port || 9);
+          existingProfile.port !== (port || 9) ||
+          existingProfile.ip_address !== espIp;
         
         if (needsUpdate) {
           console.log(`🔄 Profil güncelleniyor: ${name} (${normalizedMac})`);
           await wolProfilesDB.updateProfile(existingProfile.id, {
             name,
             broadcast_ip: broadcast_ip || '192.168.1.255',
-            port: port || 9
+            port: port || 9,
+            ip_address: espIp
           });
         }
       } else {
@@ -1067,7 +1180,8 @@ async function handleWOLProfilesFromDevice(ws, data) {
           name,
           normalizedMac,
           broadcast_ip || '192.168.1.255',
-          port || 9
+          port || 9,
+          ip || '0.0.0.0'
         );
       }
     }

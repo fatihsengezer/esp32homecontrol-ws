@@ -63,7 +63,8 @@ function connectWebSocket() {
         ws.send(JSON.stringify({ type: 'deviceSelection', deviceId: selectedDeviceId }));
         ws.send(`getCapabilities id:${selectedDeviceId}`);
         ws.send(`getRelayStatus id:${selectedDeviceId}`);
-        ws.send(`getWolStatus id:${selectedDeviceId}`);
+        // WOL profillerini yükle
+        loadWolProfilesForSelectedDevice();
         return true;
       }
       return false;
@@ -89,14 +90,7 @@ function connectWebSocket() {
     }));
   }, 1000);
   
-  // WOL durumlarını iste
-  setTimeout(() => {
-    if (selectedDeviceId) {
-      getWOLStatus();
-    } else {
-      console.log('Cihaz seçilmedi; WOL status isteği gönderilmedi');
-    }
-  }, 1000);
+  
   
   // Relay durumlarını iste
   setTimeout(() => {
@@ -436,7 +430,6 @@ async function loadDevices() {
               ws.send(JSON.stringify({ type: 'deviceSelection', deviceId: selectedDeviceId }));
               ws.send(`getCapabilities id:${selectedDeviceId}`);
               ws.send(`getRelayStatus id:${selectedDeviceId}`);
-              ws.send(`getWolStatus id:${selectedDeviceId}`);
             }
           }
         }
@@ -612,7 +605,8 @@ function updateDeviceSelector(devices) {
     ws.send(JSON.stringify({ type: "deviceSelection", deviceId: selectedDeviceId }));
     ws.send(`getCapabilities id:${selectedDeviceId}`);
     ws.send(`getRelayStatus id:${selectedDeviceId}`);
-    ws.send(`getWolStatus id:${selectedDeviceId}`);
+    // Owner bazlı WOL profillerini API'den yükle
+    loadWolProfilesForSelectedDevice();
   }
 
   // Cihaz değiştiğinde event listener ekle
@@ -626,8 +620,10 @@ function updateDeviceSelector(devices) {
       // Seçim değiştiğinde cihaz capabilities ve durumlarını iste
       ws.send(`getCapabilities id:${selectedDeviceId}`);
       ws.send(`getRelayStatus id:${selectedDeviceId}`);
-      ws.send(`getWolStatus id:${selectedDeviceId}`);
     }
+
+    // Owner bazlı WOL profillerini API'den yükle
+    loadWolProfilesForSelectedDevice();
   });
 }
 
@@ -713,6 +709,16 @@ function handleJSONMessage(data) {
       // Dinamik UI oluşturma: relay ve WOL listelerini yeniden çizeceğiz
       renderDynamicControls(data);
       uiInitialized = true;
+      // WOL profillerini API'den yükle (capabilities'den değil)
+      if (selectedDeviceId && data.deviceId === selectedDeviceId) {
+        loadWolProfilesForSelectedDevice();
+        // Status check'i sadece burada bir kez iste
+        setTimeout(() => {
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            getWOLStatus();
+          }
+        }, 500);
+      }
       break;
     case "heartbeat":
       log(`Heartbeat: ${data.deviceName} - Uptime: ${Math.floor(data.uptime/1000)}s`);
@@ -725,7 +731,6 @@ function handleJSONMessage(data) {
         if (ws && ws.readyState === WebSocket.OPEN) {
           ws.send(`getCapabilities id:${selectedDeviceId}`);
           ws.send(`getRelayStatus id:${selectedDeviceId}`);
-          ws.send(`getWolStatus id:${selectedDeviceId}`);
         }
       }
       break;
@@ -757,6 +762,20 @@ function handleJSONMessage(data) {
       break;
     case "messageHistory":
       handleMessageHistory(data);
+      break;
+    case "wol_profiles":
+      // ESP32'den gelen WOL profilleri - status bilgisi ile birlikte
+      if (data.deviceId && selectedDeviceId && data.deviceId === selectedDeviceId) {
+        if (data.profiles && Array.isArray(data.profiles)) {
+          updateWOLProfilesFromESP32(data.profiles);
+        }
+      }
+      break;
+    case "wol_profiles_updated":
+      // ESP32'den gelen WOL profilleri güncellemesi - sadece seçili cihaza aitse listeyi yenile
+      if (data.deviceId && selectedDeviceId && data.deviceId === selectedDeviceId) {
+        loadWolProfilesForSelectedDevice();
+      }
       break;
     case "error":
       log(`Hata: ${data.message}`, "ERROR");
@@ -813,31 +832,93 @@ function renderDynamicControls(cap) {
       });
     }
 
-    // WOL paneli
+    // WOL paneli - API'den yüklenecek (loadWolProfilesForSelectedDevice çağrılacak)
+    // renderDynamicControls içinde WOL listesini oluşturma, sadece API'den yükle
+  } catch (e) {
+    console.error('renderDynamicControls error:', e);
+  }
+}
+
+// Owner bazlı WOL profillerini API'den yükle ve ana sayfada göster
+async function loadWolProfilesForSelectedDevice() {
+  try {
+    if (!selectedDeviceId) return;
+    const resp = await fetch(`${getApiBaseUrl()}/api/devices/${selectedDeviceId}/wol-profiles`, {
+      method: 'GET',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!resp.ok) return;
+    const data = await resp.json();
+    if (!data.success) return;
+
     const wolList = document.getElementById('wol_list');
-    if (wolList && Array.isArray(cap.wol)) {
-      const wolParent = document.getElementById('wol_parent');
+    const wolParent = document.getElementById('wol_parent');
+    if (!wolList) return;
+
+    if (Array.isArray(data.profiles) && data.profiles.length) {
       if (wolParent) wolParent.classList.remove('hidden');
       wolList.innerHTML = '';
-      cap.wol.forEach(w => {
+      data.profiles.forEach((p, idx) => {
         const li = document.createElement('li');
         li.className = 'wol_device';
         li.innerHTML = `
           <div class="wol_status"></div>
           <div class="wol_infogroup">
             <div class="wol_texts">
-              <div class="wol_name">${w.name}</div>
-              <div class="wol_statustext">Loading...</div>
+              <div class="wol_name">${p.name}</div>
+              <div class="wol_statustext">${p.mac} • ${p.broadcast_ip}:${p.port || 9}${p.ip_address && p.ip_address !== '0.0.0.0' ? ' • IP: ' + p.ip_address : ''}</div>
             </div>
           </div>
-          <button class="button wol_button" onclick="sendWOL(${w.index})">Wake</button>
+          <button class="button wol_button" onclick="sendWOL(${idx})">Wake</button>
         `;
         wolList.appendChild(li);
       });
+    } else {
+      wolList.innerHTML = '<li class="wol_device"><div class="wol_infogroup"><div class="wol_texts"><div class="wol_name">Bu cihaz için WOL profili yok</div></div></div></li>';
+      if (wolParent) wolParent.classList.remove('hidden');
     }
   } catch (e) {
-    console.error('renderDynamicControls error:', e);
+    console.error('loadWolProfilesForSelectedDevice error:', e);
   }
+}
+
+// ESP32'den gelen WOL profillerini kullanarak status güncelle
+function updateWOLProfilesFromESP32(profiles) {
+  const wolList = document.getElementById('wol_list');
+  if (!wolList) return;
+  
+  profiles.forEach(profile => {
+    const wolDevices = document.querySelectorAll(".wol_device");
+    wolDevices.forEach(li => {
+      const nameEl = li.querySelector(".wol_name");
+      if (nameEl && nameEl.textContent === profile.name) {
+        const statusEl = li.querySelector(".wol_status");
+        const statustextEl = li.querySelector(".wol_statustext");
+        
+        if (statusEl && statustextEl) {
+          const status = profile.status || 'OFFLINE';
+          switch(status) {
+            case "RUNNING":
+              statusEl.style.backgroundColor = "#0f0"; 
+              statustextEl.textContent = "Running";
+              break;
+            case "OFFLINE":
+              statusEl.style.backgroundColor = "#555"; 
+              statustextEl.textContent = "Offline";
+              break;
+            case "BOOTING":
+              statusEl.style.backgroundColor = "#ff0"; 
+              statustextEl.textContent = "Booting";
+              break;
+            default:
+              statusEl.style.backgroundColor = "#888"; 
+              statustextEl.textContent = status;
+          }
+        }
+      }
+    });
+  });
 }
 
 function handleDeviceRegistry(data) {

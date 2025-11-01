@@ -32,9 +32,9 @@
 
 // WOL verisini .cpp dosyasına makro ile aktar
 #define WOL_DEVICES_INIT { \
-  {"Server",  {0x94, 0xC6, 0x91, 0x9C, 0x49, 0xA1}, IPAddress(192,168,1,37), IPAddress(192,168,1,255), 9, WOLDevice::OFFLINE, 0}, \
-  {"B350", {0x30, 0x9C, 0x23, 0x03, 0xDE, 0xE5}, IPAddress(192,168,1,38), IPAddress(192,168,1,255), 9, WOLDevice::OFFLINE, 0}, \
-  {"Main", {0xE8, 0x9C, 0x25, 0xC6, 0xB8, 0x26}, IPAddress(192,168,1,11), IPAddress(192,168,1,255), 9, WOLDevice::OFFLINE, 0} \
+  {"Server",{0x94, 0xC6, 0x91, 0x9C, 0x49, 0xA1}, IPAddress(192,168,1,37), IPAddress(192,168,1,255), 9, WOLDevice::OFFLINE, 0}, \
+  {"B350",  {0x30, 0x9C, 0x23, 0x03, 0xDE, 0xE5}, IPAddress(192,168,1,38), IPAddress(192,168,1,255), 9, WOLDevice::OFFLINE, 0}, \
+  {"Main",  {0xE8, 0x9C, 0x25, 0xC6, 0xB8, 0x26}, IPAddress(192,168,1,11), IPAddress(192,168,1,255), 9, WOLDevice::OFFLINE, 0} \
 }
 #define WOL_DEVICE_COUNT 3
 

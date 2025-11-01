@@ -28,6 +28,7 @@ document.addEventListener('DOMContentLoaded', function() {
   scanBtn.addEventListener('click', async function() {
     try {
       scanBtn.disabled = true;
+      scanBtn.innerHTML = '<span class="loading"></span> Taranıyor...';
       showStatus('🔍 WiFi ağları taranıyor...', 'info');
       
       const response = await fetch('/scan');
@@ -45,7 +46,8 @@ document.addEventListener('DOMContentLoaded', function() {
       networks.forEach(network => {
         const option = document.createElement('option');
         option.value = network.ssid;
-        option.textContent = `${network.ssid} ${network.rssi > -70 ? '📶' : network.rssi > -80 ? '📵' : ''} (${network.rssi} dBm)`;
+        const signalStrength = network.rssi > -70 ? '📶' : network.rssi > -80 ? '📵' : '📡';
+        option.textContent = `${network.ssid} ${signalStrength} (${network.rssi} dBm)`;
         ssidSelect.appendChild(option);
       });
       
@@ -56,6 +58,7 @@ document.addEventListener('DOMContentLoaded', function() {
       showStatus('❌ Tarama başarısız. Lütfen tekrar deneyin.', 'error');
     } finally {
       scanBtn.disabled = false;
+      scanBtn.innerHTML = '<span class="icon">📡</span> Ağları Tara';
     }
   });
 
@@ -90,23 +93,26 @@ document.addEventListener('DOMContentLoaded', function() {
       const result = await response.text();
       
       if (response.ok) {
-        showStatus('✅ Kaydedildi! Cihaz yeniden başlatılıyor...', 'success');
+        // WiFi bilgileri başarıyla kaydedildi
+        showStatus('✅ WiFi bilgileri kaydedildi! Cihaz yeniden başlatılıyor...', 'success');
         
-        // 3 saniye sonra bağlantı kontrolü yap
+        // Cihaz yeniden başlatılırken mesaj göster
         setTimeout(() => {
-          showStatus('🔄 WiFi\'ye bağlanılıyor, lütfen bekleyin...', 'info');
-        }, 3000);
+          showStatus('✅ İşlem tamamlandı! Cihaz WiFi\'ye bağlanmaya çalışıyor. Bu sayfayı kapatabilirsiniz.', 'success');
+        }, 2000);
       } else {
+        // Gerçek bir hata durumu (örneğin parametre eksik)
         showStatus('❌ Kayıt başarısız: ' + result, 'error');
         saveBtn.disabled = false;
         saveBtn.innerHTML = '<span class="icon">💾</span> Kaydet ve Bağlan';
       }
       
     } catch (error) {
-      console.error('Kayıt hatası:', error);
-      showStatus('❌ Kayıt başarısız. Lütfen tekrar deneyin.', 'error');
-      saveBtn.disabled = false;
-      saveBtn.innerHTML = '<span class="icon">💾</span> Kaydet ve Bağlan';
+      // Network hatası - ESP32 yeniden başlatıldığı için normal
+      // Bu durumda işlem başarılı sayılmalı
+      console.log('Bağlantı kesildi (cihaz yeniden başlatılıyor):', error);
+      showStatus('✅ İşlem tamamlandı! WiFi bilgileri kaydedildi. Cihaz yeniden başlatılıyor ve WiFi\'ye bağlanmaya çalışıyor. Bu sayfayı kapatabilirsiniz.', 'success');
+      // Butonu tekrar aktif etme - işlem tamamlandı
     }
   });
 
@@ -127,5 +133,3 @@ document.addEventListener('DOMContentLoaded', function() {
   // Sayfa yüklendiğinde kayıtlı WiFi'yi kontrol et
   checkSavedWiFi();
 });
-
-

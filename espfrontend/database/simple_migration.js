@@ -60,7 +60,9 @@ async function runSimpleMigration() {
                     mac VARCHAR(17) NOT NULL,
                     broadcast_ip VARCHAR(45) NOT NULL,
                     port INTEGER DEFAULT 9,
+                    ip_address VARCHAR(45) DEFAULT '0.0.0.0',
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (device_id) REFERENCES devices(device_id) ON DELETE CASCADE
                 )
             `, (err) => {

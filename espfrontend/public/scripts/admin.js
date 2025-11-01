@@ -1113,7 +1113,7 @@ async function loadWolProfiles() {
                     profileItem.innerHTML = `
                         <div class="wol-profile-info">
                             <div class="wol-profile-name">${escapeHtml(profile.name)}</div>
-                            <div class="wol-profile-details">${escapeHtml(profile.mac)} | ${escapeHtml(profile.broadcast_ip)}:${profile.port}</div>
+                            <div class="wol-profile-details">${escapeHtml(profile.mac)} | ${escapeHtml(profile.broadcast_ip)}:${profile.port}${profile.ip_address && profile.ip_address !== '0.0.0.0' ? ' | IP: ' + escapeHtml(profile.ip_address) : ''}</div>
                         </div>
                         <div class="wol-profile-actions">
                             <button class="btn-small btn-edit" onclick="editWolProfile(${profile.id})" title="Düzenle">
@@ -1197,10 +1197,11 @@ async function addWolProfile() {
     const name = document.getElementById('wol-profile-name').value.trim();
     let mac = document.getElementById('wol-profile-mac').value.trim();
     const broadcast = document.getElementById('wol-profile-broadcast').value.trim();
+    const ipAddress = document.getElementById('wol-profile-ip').value.trim();
     const port = document.getElementById('wol-profile-port').value || '9';
     
     if (!name || !mac || !broadcast) {
-        showToast('Tüm alanlar gerekli', 'warning');
+        showToast('Tüm zorunlu alanlar gerekli', 'warning');
         return;
     }
     
@@ -1211,17 +1212,33 @@ async function addWolProfile() {
         return;
     }
     
-    // IP validasyonu (basit)
+    // Broadcast IP validasyonu
     const ipPattern = /^(\d{1,3}\.){3}\d{1,3}$/;
     if (!ipPattern.test(broadcast)) {
         showToast('Geçersiz Broadcast IP formatı!', 'error');
         return;
     }
     
+    // IP adresi validasyonu (opsiyonel - varsa kontrol et)
+    let finalIpAddress = ipAddress || '0.0.0.0';
+    if (ipAddress && ipAddress !== '0.0.0.0') {
+        if (!ipPattern.test(ipAddress)) {
+            showToast('Geçersiz IP adresi formatı!', 'error');
+            return;
+        }
+        finalIpAddress = ipAddress;
+    }
+    
     try {
         const response = await apiFetch(`/api/devices/${selectedDeviceId}/wol-profiles`, {
             method: 'POST',
-            body: JSON.stringify({ name, mac: normalizedMac, broadcast_ip: broadcast, port: parseInt(port) || 9 })
+            body: JSON.stringify({ 
+                name, 
+                mac: normalizedMac, 
+                broadcast_ip: broadcast, 
+                port: parseInt(port) || 9,
+                ip_address: finalIpAddress
+            })
         });
         
         const data = await response.json();
@@ -1305,6 +1322,7 @@ async function editWolProfile(profileId) {
         document.getElementById('edit-wol-profile-name').value = profile.name;
         document.getElementById('edit-wol-profile-mac').value = profile.mac;
         document.getElementById('edit-wol-profile-broadcast').value = profile.broadcast_ip;
+        document.getElementById('edit-wol-profile-ip').value = profile.ip_address || '';
         document.getElementById('edit-wol-profile-port').value = profile.port || 9;
         
         // Modal'ı göster
@@ -1325,10 +1343,11 @@ async function updateWolProfile() {
     const name = document.getElementById('edit-wol-profile-name').value.trim();
     let mac = document.getElementById('edit-wol-profile-mac').value.trim();
     const broadcast = document.getElementById('edit-wol-profile-broadcast').value.trim();
+    const ipAddress = document.getElementById('edit-wol-profile-ip').value.trim();
     const port = document.getElementById('edit-wol-profile-port').value || '9';
     
     if (!name || !mac || !broadcast) {
-        showToast('Tüm alanlar gerekli', 'warning');
+        showToast('Tüm zorunlu alanlar gerekli', 'warning');
         return;
     }
     
@@ -1339,11 +1358,21 @@ async function updateWolProfile() {
         return;
     }
     
-    // IP validasyonu
+    // Broadcast IP validasyonu
     const ipPattern = /^(\d{1,3}\.){3}\d{1,3}$/;
     if (!ipPattern.test(broadcast)) {
         showToast('Geçersiz Broadcast IP formatı!', 'error');
         return;
+    }
+    
+    // IP adresi validasyonu (opsiyonel - varsa kontrol et)
+    let finalIpAddress = ipAddress || '0.0.0.0';
+    if (ipAddress && ipAddress !== '0.0.0.0') {
+        if (!ipPattern.test(ipAddress)) {
+            showToast('Geçersiz IP adresi formatı!', 'error');
+            return;
+        }
+        finalIpAddress = ipAddress;
     }
     
     try {
@@ -1353,7 +1382,8 @@ async function updateWolProfile() {
                 name,
                 mac: normalizedMac,
                 broadcast_ip: broadcast,
-                port: parseInt(port) || 9
+                port: parseInt(port) || 9,
+                ip_address: finalIpAddress
             })
         });
         

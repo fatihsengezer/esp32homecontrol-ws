@@ -15,10 +15,62 @@ console.log('📁 Database file:', dbPath);
 // Veritabanı bağlantısı
 const db = new Database(dbPath);
 
+// Migration kontrolü ve çalıştırma
+function runMigrations() {
+    try {
+        console.log('🔄 Migration kontrolü yapılıyor...');
+        
+        // wol_profiles tablo yapısını kontrol et
+        const tableInfo = db.prepare("PRAGMA table_info(wol_profiles)").all();
+        const hasIpAddress = tableInfo.some(col => col.name === 'ip_address');
+        const hasUpdatedAt = tableInfo.some(col => col.name === 'updated_at');
+        
+        // Migration 003: ip_address kolonu
+        if (!hasIpAddress) {
+            console.log('📊 Migration 003: ip_address kolonu ekleniyor...');
+            db.exec(`
+                ALTER TABLE wol_profiles ADD COLUMN ip_address VARCHAR(45) DEFAULT '0.0.0.0';
+                UPDATE wol_profiles SET ip_address = '0.0.0.0' WHERE ip_address IS NULL;
+            `);
+            console.log('✅ Migration 003 tamamlandı: ip_address kolonu eklendi');
+        } else {
+            console.log('✅ Migration 003: ip_address kolonu zaten mevcut');
+        }
+        
+        // Migration 004: updated_at kolonu
+        if (!hasUpdatedAt) {
+            console.log('📊 Migration 004: updated_at kolonu ekleniyor...');
+            // SQLite'da CURRENT_TIMESTAMP DEFAULT değer olarak ALTER TABLE ile kullanılamaz
+            // Önce kolonu ekle, sonra değerleri güncelle
+            db.exec(`
+                ALTER TABLE wol_profiles ADD COLUMN updated_at DATETIME;
+            `);
+            // Mevcut kayıtlar için updated_at değerini created_at veya CURRENT_TIMESTAMP olarak ayarla
+            db.exec(`
+                UPDATE wol_profiles SET updated_at = COALESCE(created_at, CURRENT_TIMESTAMP) WHERE updated_at IS NULL;
+            `);
+            console.log('✅ Migration 004 tamamlandı: updated_at kolonu eklendi');
+        } else {
+            console.log('✅ Migration 004: updated_at kolonu zaten mevcut');
+        }
+    } catch (error) {
+        // Kolon zaten varsa hata verme
+        if (error.message && error.message.includes('duplicate column')) {
+            console.log('⚠️ Migration hatası: Kolon zaten mevcut (duplicate error)');
+        } else {
+            console.error('❌ Migration hatası:', error);
+            throw error;
+        }
+    }
+}
+
 // Veritabanını başlat
 function initDatabase() {
     try {
         console.log('📊 Veritabanı başlatılıyor...');
+        
+        // Migration'ları çalıştır
+        runMigrations();
         
         // Kullanıcılar tablosu
         db.exec(`
@@ -664,11 +716,11 @@ const configQueueDB = {
 // WOL profiles işlemleri
 const wolProfilesDB = {
     // WOL profili ekle
-    addProfile: (deviceId, name, mac, broadcastIp, port = 9) => {
+    addProfile: (deviceId, name, mac, broadcastIp, port = 9, ipAddress = '0.0.0.0') => {
         try {
-            const stmt = db.prepare('INSERT INTO wol_profiles (device_id, name, mac, broadcast_ip, port) VALUES (?, ?, ?, ?, ?)');
-            const result = stmt.run(deviceId, name, mac, broadcastIp, port);
-            return Promise.resolve({ id: result.lastInsertRowid, deviceId, name, mac, broadcastIp, port });
+            const stmt = db.prepare('INSERT INTO wol_profiles (device_id, name, mac, broadcast_ip, port, ip_address) VALUES (?, ?, ?, ?, ?, ?)');
+            const result = stmt.run(deviceId, name, mac, broadcastIp, port, ipAddress || '0.0.0.0');
+            return Promise.resolve({ id: result.lastInsertRowid, deviceId, name, mac, broadcastIp, port, ip_address: ipAddress || '0.0.0.0' });
         } catch (err) {
             return Promise.reject(err);
         }
@@ -716,6 +768,10 @@ const wolProfilesDB = {
             if (profileData.port !== undefined) {
                 updates.push('port = ?');
                 values.push(profileData.port);
+            }
+            if (profileData.ip_address !== undefined) {
+                updates.push('ip_address = ?');
+                values.push(profileData.ip_address || '0.0.0.0');
             }
             
             if (updates.length === 0) {

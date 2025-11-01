@@ -728,8 +728,14 @@
             <small class="form-help-text">Format: AA:BB:CC:DD:EE:FF veya AABBCCDDEEFF</small>
           </div>
           <div class="form-group">
+            <label for="wol-profile-ip">Cihaz IP Adresi:</label>
+            <input type="text" id="wol-profile-ip" placeholder="192.168.1.38">
+            <small class="form-help-text">Status check için cihazın IP adresi. Boş bırakılırsa ping atılmaz (0.0.0.0).</small>
+          </div>
+          <div class="form-group">
             <label for="wol-profile-broadcast">Broadcast IP:</label>
             <input type="text" id="wol-profile-broadcast" placeholder="192.168.1.255" required>
+            <small class="form-help-text">WOL paketinin gönderileceği broadcast adresi (genellikle ağ broadcast IP'si).</small>
           </div>
           <div class="form-group">
             <label for="wol-profile-port">Port:</label>
@@ -768,8 +774,14 @@
             <small class="form-help-text">Format: AA:BB:CC:DD:EE:FF veya AABBCCDDEEFF</small>
           </div>
           <div class="form-group">
+            <label for="edit-wol-profile-ip">Cihaz IP Adresi:</label>
+            <input type="text" id="edit-wol-profile-ip" placeholder="192.168.1.38">
+            <small class="form-help-text">Status check için cihazın IP adresi. Boş bırakılırsa ping atılmaz (0.0.0.0).</small>
+          </div>
+          <div class="form-group">
             <label for="edit-wol-profile-broadcast">Broadcast IP:</label>
             <input type="text" id="edit-wol-profile-broadcast" placeholder="192.168.1.255" required>
+            <small class="form-help-text">WOL paketinin gönderileceği broadcast adresi (genellikle ağ broadcast IP'si).</small>
           </div>
           <div class="form-group">
             <label for="edit-wol-profile-port">Port:</label>

@@ -22,6 +22,21 @@ async function runMigrations() {
         await runSQL(db, migration002);
         console.log('✅ Migration 002 tamamlandı');
         
+        // Migration 003: Add IP address to WOL profiles
+        console.log('📊 Migration 003: Add IP address to WOL profiles...');
+        try {
+            const migration003 = fs.readFileSync(path.join(__dirname, 'migrations', '003_add_ip_to_wol_profiles.sql'), 'utf8');
+            await runSQL(db, migration003);
+            console.log('✅ Migration 003 tamamlandı');
+        } catch (error) {
+            // Kolon zaten varsa hata verme (güvenli)
+            if (error.message && error.message.includes('duplicate column')) {
+                console.log('⚠️ Migration 003: ip_address kolonu zaten mevcut, atlanıyor');
+            } else {
+                throw error;
+            }
+        }
+        
         console.log('🎉 Tüm migrations başarıyla tamamlandı!');
         
     } catch (error) {
